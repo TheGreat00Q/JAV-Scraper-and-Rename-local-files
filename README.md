@@ -1,4 +1,4 @@
-# Collect-Info-and-Fanart-for-JAV-
+# JAV-Scraper-and-Rename-local-files
 收集jav元数据，并规范本地文件（夹）的格式。  
 python3.7  使用pyinstaller打包成exe。
 
