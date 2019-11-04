@@ -11,3 +11,8 @@ python3.7
 5、保存信息写入nfo。  
 6、下载封面url作fanart.jpg，裁剪右半边作poster.jpg。  
 7、重命名文件夹。  
+
+目标效果：  
+![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/图片1.png)  
+![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/图片2.png)  
+![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/图片3.png)  
