@@ -16,7 +16,7 @@ python3.7  使用pyinstaller打包成exe。
 ![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/2.png)  
 ![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/3.png)  
 
-显示不出图片，效果及使用说明请看doc文件。  
+以下为ini中的用户设置：
 
 [收集nfo]  
 是否收集nfo？ = 是  
