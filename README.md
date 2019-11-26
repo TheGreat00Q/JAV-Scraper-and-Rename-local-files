@@ -17,7 +17,7 @@ python3.7  使用pyinstaller打包成exe。
 目标效果：  
 ![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/1.png)  
 ![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/2.png)  
-![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/3.png)  
+![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/3.jpg)  
 
 以下为ini中的用户设置：  
 
