@@ -51,9 +51,9 @@ javbus网址 = https://www.buscdn.work/
 
 [百度翻译API]  
 是否需要日语简介？ = 是  
-是否翻译为中文？ = 是  
-app id = 20190723000320508  
-密钥 = KLstKvVtFnfusg_ArQ8L  
+是否翻译为中文？ = 否  
+app id =     
+密钥 =   
 
 [百度人体检测]  
 是否需要准确定位人脸的poster？ = 否  
