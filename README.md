@@ -1,6 +1,7 @@
 # JAV-Scraper-and-Rename-local-files
 收集jav元数据，并规范本地文件（夹）的格式。  
 python3.7  使用pyinstaller打包成exe。
+exe下载：<a class="git-link" href="https://github-production-release-asset-2e65be.s3.amazonaws.com/199952692/67614c00-1071-11ea-8c3a-a1e536c53052?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20191126%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20191126T092836Z&X-Amz-Expires=300&X-Amz-Signature=9cc87b4a529b5ddc8b19bc5c883a55055b7e70c219c5594233658baf0cb9d89a&X-Amz-SignedHeaders=host&actor_id=44168897&response-content-disposition=attachment%3B%20filename%3DV1.9.7.JAV.For.Emby.Kodi.Jellyfin.zip&response-content-type=application%2Foctet-stream"></a>
 
 工作流程：  
 1、用户选择文件夹，遍历路径下的所有文件。  
