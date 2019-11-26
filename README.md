@@ -16,7 +16,7 @@ python3.7  使用pyinstaller打包成exe。
 ![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/2.png)  
 ![image](https://github.com/junerain123/Collect-Info-and-Fanart-for-JAV-/blob/master/images/3.png)  
 
-以下为ini中的用户设置：
+以下为ini中的用户设置：  
 
 [收集nfo]  
 是否收集nfo？ = 是  
@@ -24,26 +24,37 @@ python3.7  使用pyinstaller打包成exe。
 
 [重命名影片]  
 是否重命名影片？ = 是  
-重命名影片的格式 = 车牌+空格+标题  
-
-[重命名影片所在文件夹]  
-是否重命名文件夹？ = 是  
-重命名文件夹的格式 = 【+首个女优+】+车牌  
+重命名影片的格式 = 车牌  
+  
+[修改文件夹]  
+是否重命名或创建独立文件夹？ = 否  
+新文件夹的格式 = 【+全部女优+】+车牌  
 
 [获取两张jpg]  
 是否获取fanart.jpg和poster.jpg？ = 是  
+
+[kodi专用]  
+是否收集女优头像 = 否  
+
+[emby服务端]  
+网址 = http://localhost:8096/  
+api id = 12345678  
 
 [其他设置]  
 javlibrary网址 = http://www.x39n.com/cn/  
 javbus网址 = https://www.buscdn.work/  
 素人车牌(若有新车牌请自行添加) = MIUM、NTK、ARA、GANA、LUXU、DCV、MAAN、HOI、NAMA、SWEET、SIRO、SCUTE、CUTE、SQB  
-视频文件类型 = mp4、mkv、avi、wmv、iso、MP4、MKV、AVI、WMV、ISO  
-
-[色花堂]  
-色花堂网址 = https://www.sdfasf.space/  
-在下载种子时下载封面？ = 否  
+扫描文件类型 = mp4、mkv、avi、wmv、iso、rmvb、m2ts  
 
 [百度翻译API]  
-是否需要中文简介？ = 否  
-app id =   
-密钥 =   
+是否需要日语简介？ = 是  
+是否翻译为中文？ = 是  
+app id = 20190723000320508  
+密钥 = KLstKvVtFnfusg_ArQ8L  
+
+[百度人体检测]  
+是否需要准确定位人脸的poster？ = 否  
+appid =   
+api key =   
+secret key =   
+  
