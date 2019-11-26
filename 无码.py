@@ -1,8 +1,9 @@
 # -*- coding:utf-8 -*-
-import re, os, configparser, requests
+import re, os, configparser, requests, shutil
 from PIL import Image
 from tkinter import filedialog, Tk
 from time import sleep
+from aip import AipBodyAnalysis
 
 
 # get_directory功能是 获取用户选取的文件夹路径
@@ -13,7 +14,7 @@ def get_directory():
     if work_path == '':
         print('你没有选择目录! 请重新选：')
         sleep(2)
-        get_directory()
+        return get_directory()
     else:
         # askdirectory 获得是 正斜杠 路径C:/，所以下面要把 / 换成 反斜杠\
         temp_path = work_path.replace('/', '\\')
@@ -27,30 +28,74 @@ def write_fail(fail_m):
     record_txt.close()
 
 
+# 人体识别，返回鼻子位置
+def image_cut(file_name, cli):
+    with open(file_name, 'rb') as fp:
+        image = fp.read()
+    result = cli.bodyAnalysis(image)
+    try:
+        return int(result["person_info"][0]['body_parts']['nose']['x'])
+    except:
+        print('    >正在尝试重新人体检测...')
+        return image_cut(file_name, cli)
+
+
+# 每一部jav的“结构体”
+class JavFile(object):
+    def __init__(self):
+        self.name = 'ABC-123.mp4'  # 文件名
+        self.car = 'ABC-123'  # 车牌
+        self.episodes = 0     # 第几集
+        self.path = ''     # 路径
+
+
 #  main开始
-print('1、尽量：一个影片一个文件夹，一个文件夹一个影片。\n'
-      '2、多部同车牌的影片在同一个文件夹，可能出错。\n'
-      '3、找不到AV信息，请在javbus上确认，再更正车牌，如 heyzo1 => heyzo-1 => heyzo-0001\n')
+print('1、如果连不上javbus，请更正防屏蔽地址\n'
+      '2、务必在ini中填写百度人体检测账户\n'
+      '3、无码影片没有简介\n'
+      '4、找不到AV信息，请在javbus上确认，再修改本地视频文件名，如：\n'
+      '   112314-742-carib-1080p.mp4 => 112314-742.mp4\n'
+      '   Heyzo_HD_0733_full.mp4 => Heyzo_0733.mp4\n')
 # 读取配置文件，这个ini文件用来给用户设置重命名的格式和jav网址
 config_settings = configparser.RawConfigParser()
 print('正在读取ini中的设置...', end='')
 try:
-    config_settings.read("ini的设置会影响所有exe的操作结果.ini")
+    config_settings.read('ini的设置会影响所有exe的操作结果.ini')
     if_nfo = config_settings.get("收集nfo", "是否收集nfo？")
     if_exnfo = config_settings.get("收集nfo", "是否跳过已存在nfo的文件夹？")
     if_mp4 = config_settings.get("重命名影片", "是否重命名影片？")
     rename_mp4 = config_settings.get("重命名影片", "重命名影片的格式")
-    if_floder = config_settings.get("重命名影片所在文件夹", "是否重命名文件夹？")
-    rename_folder = config_settings.get("重命名影片所在文件夹", "重命名文件夹的格式")
+    if_floder = config_settings.get("修改文件夹", "是否重命名或创建独立文件夹？")
+    rename_folder = config_settings.get("修改文件夹", "新文件夹的格式")
     if_jpg = config_settings.get("获取两张jpg", "是否获取fanart.jpg和poster.jpg？")
+    if_sculpture = config_settings.get("kodi专用", "是否收集女优头像")
     bus_url = config_settings.get("其他设置", "javbus网址")
     suren_pref = config_settings.get("其他设置", "素人车牌(若有新车牌请自行添加)")
-    file_type = config_settings.get("其他设置", "视频文件类型")
+    file_type = config_settings.get("其他设置", "扫描文件类型")
+    if_face = config_settings.get("百度人体检测", "是否需要准确定位人脸的poster？")
+    appid = config_settings.get("百度人体检测", "AppID")
+    apikey = config_settings.get("百度人体检测", "API Key")
+    sk = config_settings.get("百度人体检测", "Secret Key")
 except:
     print('\n这个ini文件被你写“死”了，删除它，然后打开exe自动重新创建ini！')
     os.system('pause')
+
+
+if if_sculpture == '是':
+    if not os.path.exists('缺失的女优头像.ini'):
+        config_actor = configparser.ConfigParser()
+        config_actor.add_section("缺失的女优头像")
+        config_actor.set("缺失的女优头像", "女优姓名", "N(次数)")
+        config_actor.add_section("说明")
+        config_actor.set("说明", "上面的“女优姓名 = N(次数)”的表达式", "后面的N数字表示你有N部(次)影片都在找她的头像，可惜找不到")
+        config_actor.set("说明", "你可以去保存一下她的头像jpg到“女优头像”文件夹", "以后就能保存她的头像到影片的文件夹了")
+        config_actor.write(open('缺失的女优头像.ini', "w"))
+        print('\n    >“缺失的女优头像.ini”文件被你玩坏了...正在重写ini...成功！')
+        print('正在重新读取...', end='')
 print('\n读取ini文件成功!')
 
+if if_face == '是':
+    client = AipBodyAnalysis(appid, apikey, sk)
 nfo_dict = {'空格': ' '}                   # 用于暂时存放影片信息，女优，标题等
 suren_list = suren_pref.split('、')        # 素人番号的列表，来自ini文件的suren_pref
 rename_mp4_list = rename_mp4.split('+')    # 重命名视频的格式，来自ini文件的rename_mp4
@@ -203,29 +248,60 @@ while start_key == '':
 
     # root【当前根目录】 dirs【子目录】 files【文件】，root是字符串，后两个是列表
     for root, dirs, files in os.walk(path):
-        if if_exnfo == '是' and files and files[-1].endswith('nfo'):
+        if if_exnfo == '是' and files and (files[-1].endswith('nfo') or (len(files) > 1 and files[-2].endswith('nfo'))):
             continue
-        for file in files:
-            try:
-                # 判断是不是视频，得到车牌号
-                if file.endswith(type_tuple):  # ([a-zA-Z]*\d*-?)+
-                    video_num_g = re.search(r'([a-zA-Z0-9]+-?_?[a-zA-Z0-9]+-?_?\d*)', file[:-4])
-                    if str(video_num_g) != 'None':  # 如果你下过上千部片，各种参差不齐的命名，你就会理解我了。
-                        car_num = video_num_g.group(1)
-                        alpg = re.search(r'([a-zA-Z]+)', car_num)
-                        if str(alpg) != 'None':
-                            if alpg.group(1) in suren_list:  # 如果这是素人影片，告诉一下用户，它们需要另外处理
-                                fail_times += 1
-                                fail_message = '第' + str(fail_times) + '个失败！素人影片：\\' + root.lstrip(path) + '\\' + file + '\n'
-                                print('>>' + fail_message, end='')
-                                fail_list.append('    >' + fail_message)
-                                write_fail('>>' + fail_message)
-                                continue
+        # 对这一层文件夹进行评估,有多少视频，有多少同车牌视频，是不是独立文件夹
+        car_videos = []  # 存放：需要整理的jav的结构体
+        cars_dic = {}  # 存放：每一部jav有几集？
+        videos_num = 0  # 当前文件夹中视频的数量，可能有视频不是jav
+        for raw_file in files:
+            # try:
+            # 判断是不是视频，得到车牌号
+            if raw_file.endswith(type_tuple):  # ([a-zA-Z]*\d*-?)+
+                videos_num += 1
+                video_num_g = re.search(r'([a-zA-Z0-9]+-?_?[a-zA-Z0-9]+-?_?\d*)', raw_file)
+                if str(video_num_g) != 'None':  # 如果你下过上千部片，各种参差不齐的命名，你就会理解我了。
+                    car_num = video_num_g.group(1)
+                    alpg = re.search(r'([a-zA-Z]+)', car_num)
+                    if str(alpg) != 'None':
+                        if alpg.group(1).upper() in suren_list:  # 如果这是素人影片，告诉一下用户，它们需要另外处理
+                            fail_times += 1
+                            fail_message = '第' + str(fail_times) + '个失败！素人影片：\\' + root.lstrip(path) + '\\' + file + '\n'
+                            print('>>' + fail_message, end='')
+                            fail_list.append('    >' + fail_message)
+                            write_fail('>>' + fail_message)
+                            continue
+                    video_type = '.' + str(raw_file.split('.')[-1])  # 文件类型的长度，如：mp4是3，rmvb是4
+                    if car_num not in cars_dic:
+                        cars_dic[car_num] = 1
                     else:
-                        continue
+                        cars_dic[car_num] += 1
+                    jav_file = JavFile()
+                    jav_file.car = car_num
+                    jav_file.name = raw_file
+                    jav_file.episodes = cars_dic[car_num]
+                    car_videos.append(jav_file)
                 else:
                     continue
+            else:
+                continue
 
+        if cars_dic:
+            if len(cars_dic) > 1 or videos_num > len(car_videos) or len(dirs) > 1 or (
+                    len(dirs) == 1 and dirs[0] != '.actors'):
+                # 当前文件夹下， 车牌不止一个，还有其他非jav视频，有其他文件夹
+                separate_floder = False
+            else:
+                separate_floder = True
+        else:
+            continue
+
+        # print(car_videos)
+        # 正式开始
+        for srt in car_videos:
+            try:
+                car_num = srt.car
+                file = srt.name
                 # 获取nfo信息的javbus搜索网页
                 search_url = bus_url + 'uncensored/search/' + car_num + '&type=&parent=uc'
                 try:
@@ -248,16 +324,37 @@ while start_key == '':
                     bav_url = bav_urls[0]
                 elif len(bav_urls) > 1:  # 找到不止一个
                     print('>>该车牌：' + car_num + ' 搜索到多个结果，正在尝试精确定位...')
-                    car_nums = re.findall(r'\d+', car_num)[-1]  # 匹配处理“01”
-                    car_nums = car_nums.lstrip('0')
+                    car_suf = re.findall(r'\d+', car_num)[-1]  # 匹配处理“01”
+                    car_suf = car_suf.lstrip('0')
+                    car_prefs = re.findall(r'[a-zA-Z]+', car_num)  # 匹配处理“n”
+                    if car_prefs:
+                        car_pref = car_prefs[-1].upper()
+                        # print(car_pref)
+                    else:
+                        car_pref = ''
                     bav_url = ''
                     for i in bav_urls:
-                        url_num = re.findall(r'\d+', i)[-1]  # 匹配处理“01”
-                        url_num = url_num.lstrip('0')
-                        if car_nums == url_num:
-                            bav_url = i
-                            print('>>确定为：', bav_url)
-                            break
+                        # print(re.findall(r'\d+', i.split('/')[-1]))
+                        url_suf = re.findall(r'\d+', i.split('/')[-1])[-1]  # 匹配处理“01”
+                        url_suf = url_suf.lstrip('0')
+                        if car_suf == url_suf:  # 数字相同
+                            url_prefs = re.findall(r'[a-zA-Z]+', i.split('/')[-1])  # 匹配处理“n”
+                            if url_prefs:
+                                url_pref = url_prefs[-1].upper()
+                                # print(url_pref)
+                            else:
+                                url_pref = ''
+                            if car_pref == url_pref:  # 字母相同
+                                bav_url = i
+                                fail_times += 1
+                                fail_message = '第' + str(fail_times) + '个警告！从“' + file + '”的多个搜索结果中确定为：' + bav_url + '\n'
+                                print('>>' + fail_message, end='')
+                                fail_list.append('    >' + fail_message)
+                                write_fail('    >' + fail_message)
+                                break
+                        else:
+                            continue
+                    # 没找到，还是空
                     if bav_url == '':
                         fail_times += 1
                         fail_message = '第' + str(fail_times) + '个失败！找不到AV信息：' + search_url + '，\\' + root.lstrip(
@@ -317,11 +414,16 @@ while start_key == '':
                     fail_list.append('    >' + fail_message)
                     write_fail('>>' + fail_message)
                     continue
-                nfo_dict['标题'] = title.split(' ', 1)[1]
+                # 处理影片的标题过长
+                if len(title) > 50:
+                    title_easy = title[:50]
+                else:
+                    title_easy = title
+                nfo_dict['标题'] = title_easy.split(' ', 1)[1]
                 # <title>030619-872 スーパーボディと最強の美貌の悶える女 - JavBus</title>
                 print('>>正在处理：', title)
                 # 车牌号 識別碼:</span> <span style="color:#CC0000;">030619-872</span>
-                nfo_dict['车牌'] = title.split(' ', 1)[0]
+                nfo_dict['车牌'] = title_easy.split(' ', 1)[0]
                 # 導演:</span> <a href="https://www.cdnbus.work/director/3hy">うさぴょん。</a></p>
                 directorg = re.search(r'導演:</span> <a href=".+?">(.+?)</a>', jav_html)
                 if str(directorg) != 'None':
@@ -360,6 +462,8 @@ while start_key == '':
                 genres = re.findall(r'<span class="genre"><a href=".+?">(.+?)</a></span>', bav_html)
                 if len(genres) == 0:
                     genres = ['无特点']
+                if '-c.' in file or '-C.' in file:
+                    genres.append('中文字幕')
                 # DVD封面cover
                 cover_url = ''
                 coverg = re.search(r'<a class="bigImage" href="(.+?)">', bav_html)  # 封面图片的正则对象
@@ -368,11 +472,9 @@ while start_key == '':
                 #######################################################################
                 nfo_dict['标题'] = nfo_dict['标题'].replace('\\', '#').replace('/', '#').replace(':', '：')\
                     .replace('*', '#').replace('?', '？').replace('"', '#').replace('<', '【').replace('>', '】').replace('|', '#').rstrip(nfo_dict['首个女优'])
-                # print(nfo_dict['标题'])
-                # print(nfo_dict['首个女优'])
 
                 # 重命名视频
-                new_mp4 = file[:-4]
+                new_mp4 = file.rstrip(video_type)
                 if if_mp4 == '是':  # 新文件名
                     new_mp4 = ''
                     for j in rename_mp4_list:
@@ -382,184 +484,206 @@ while start_key == '':
                             new_mp4 = new_mp4 + nfo_dict[j]
                         else:
                             new_mp4 = new_mp4 + ' '.join(nfo_dict[j])
+                    new_mp4 = new_mp4.rstrip(' ')
+                    cd_msg = ''
+                    if cars_dic[car_num] > 1:    # 是CD1还是CDn？
+                        cd_msg = '-cd' + str(srt.episodes)
+                        new_mp4 += cd_msg
                     try:
-                        os.rename(root + '\\' + file, root + '\\' + new_mp4 + file[-4:])
-                        print('    >修改文件名完成')
+                        # print(cars_dic)
+                        # print(root + '\\' + file)
+                        # print(root + '\\' + new_mp4 + video_type)
+                        os.rename(root + '\\' + file, root + '\\' + new_mp4 + video_type)
+                        file = new_mp4 + video_type
+                        print('    >修改文件名' + cd_msg + '完成')
                     except:
-                        try:  # 已存在第一个视频，把这个视频命名为“B”
-                            new_mp4 += 'B'
-                            os.rename(root + '\\' + file, root + '\\' + new_mp4 + file[-4:])
-                            print('    >修改文件名完成')
-                        except:  # 因为第一个视频重命名了文件夹，所以B丢了它的路径
-                            if if_floder == '是':
-                                # 新文件夹名rename_folder
-                                new_folder = ''
-                                for j in rename_folder_list:
-                                    if j not in nfo_dict:
-                                        new_folder = new_folder + j
-                                    elif j != '全部女优':
-                                        new_folder = new_folder + nfo_dict[j]
-                                    else:
-                                        new_folder = new_folder + ' '.join(nfo_dict[j])
-                                newroot_list = root.split('\\')
-                                del newroot_list[-1]
-                                upper2_root = '\\'.join(newroot_list)
-                                new_root = upper2_root + '\\' + new_folder  # new_root是B当前的实际根目录，其实就是目标目录
-                                try:
-                                    # print(new_root + '\\' + file)
-                                    # print(new_mp4 + file[-4:])
-                                    os.rename(new_root + '\\' + file, new_root + '\\' + new_mp4 + file[-4:])  # 当前的路径=> 目标命名
-                                    print('    >修改文件名完成')
-                                    root = new_root  # 后面的root应该遵循new_root
-                                except:
-                                    fail_times += 1
-                                    fail_message = '    >第' + str(
-                                        fail_times) + '个失败！修改视频文件名失败，有多部同车牌视频，或者文件被后台打开了：\\' + root.lstrip(
-                                        path) + '\\' + file + '\n'
-                                    print(fail_message, end='')
-                                    fail_list.append(fail_message)
-                                    write_fail(fail_message)
+                        fail_times += 1
+                        fail_message = '    >第' + str(
+                            fail_times) + '个失败！修改视频文件名失败，有多部同车牌视频，或者文件被后台打开了：\\' + root.lstrip(
+                            path) + '\\' + file + '\n'
+                        print(fail_message, end='')
+                        fail_list.append(fail_message)
+                        write_fail(fail_message)
+                        continue
 
-                try:
-                    #写入nfo开始
-                    if if_nfo == '是':
-                        # 开始写入nfo，这nfo格式是参考的emby的nfo
-                        info_path = root + '\\' + new_mp4 + '.nfo'      #nfo存放的地址
-                        try:
-                            f = open(info_path, 'w', encoding="utf-8")
-                        except:
-                            fail_times += 1
-                            fail_message = '    >第' + str(fail_times) + '个失败！写入nfo失败，丢失路径：\\' + info_path.lstrip(
-                                path) + '\n'
-                            print(fail_message, end='')
-                            fail_list.append(fail_message)
-                            write_fail(fail_message)
-                            continue
-                        f.write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?>\n"
-                                "<movie>\n"
-                                "  <plot></plot>\n"
-                                "  <title>" + title + "</title>\n"
-                                "  <year>" + nfo_dict['发行年份'] + "</year>\n"
-                                "  <mpaa>NC-17</mpaa>\n"                            
-                                "  <customrating>NC-17</customrating>\n"
-                                "  <countrycode>JP</countrycode>\n"
-                                "  <premiered>" + nfo_dict['发行年月日'] + "</premiered>\n"
-                                "  <release>" + nfo_dict['发行年月日'] + "</release>\n"
-                                "  <runtime>" + nfo_dict['片长'] + "</runtime>\n"
-                                "  <country>日本</country>\n"
-                                "  <studio>" + nfo_dict['制作商'] + "</studio>\n"
-                                "  <id>" + nfo_dict['车牌'] + "</id>\n"
-                                "  <num>" + nfo_dict['车牌'] + "</num>\n")
-                        for i in genres:
+                # 重命名文件夹
+                new_root = root
+                if if_floder == '是':
+                    # 新文件夹名rename_folder
+                    new_folder = ''
+                    for j in rename_folder_list:
+                        if j not in nfo_dict:
+                            new_folder = new_folder + j
+                        elif j != '全部女优':
+                            new_folder = new_folder + nfo_dict[j]
+                        else:
+                            new_folder = new_folder + ' '.join(nfo_dict[j])
+                    new_folder = new_folder.rstrip(' ')
+                    if separate_floder:
+                        if cars_dic[car_num] == 1 or (
+                                cars_dic[car_num] > 1 and cars_dic[car_num] == srt.episodes):  # 同一车牌有多部，且这是最后一部，才会重命名
+                            newroot_list = root.split('\\')
+                            del newroot_list[-1]
+                            upper2_root = '\\'.join(newroot_list)
+                            new_root = upper2_root + '\\' + new_folder  # 当前文件夹就会被重命名
+                            # 修改文件夹
                             try:
-                                f.write("  <genre>" + gen_dict[i] + "</genre>\n")
+                                os.rename(root, new_root)
                             except:
                                 fail_times += 1
                                 fail_message = '    >第' + str(
-                                    fail_times) + '个失败！写入[特点]失败：' + i + '，\\' + root.lstrip(
+                                    fail_times) + '个失败！重命名文件夹名失败，内部文件被后台打开了，或者已经有同番号的文件夹了：\\' + root.lstrip(
                                     path) + '\\' + file + '\n'
                                 print(fail_message, end='')
                                 fail_list.append(fail_message)
                                 write_fail(fail_message)
-                        for i in nfo_dict['全部女优']:
-                            f.write("  <actor>\n    <name>" + i + "</name>\n    <type>Actor</type>\n  </actor>\n")
-                        f.write("</movie>\n")
-                        f.close()
-                        print('    >nfo收集完成')
-
-                    # 需要下载三张图片
-                    if if_jpg == '是':
-                        # 默认的 全标题.jpg封面
-                        fanart_path = root + '\\' + new_mp4 + '-fanart.jpg'
-                        # 下载 海报
-                        try:
-                            print('    >正在下载fanart：', cover_url)
-                            r = requests.get(cover_url, stream=True, timeout=10)
-                            with open(fanart_path, 'wb') as f:
-                                for chunk in r:
-                                    f.write(chunk)
-                            print('    >fanart.jpg下载成功')
-                        except:
-                            try:
-                                print('    >尝试下载fanart失败，正在尝试第二次下载...')
-                                r = requests.get(cover_url, stream=True, timeout=10)
-                                with open(fanart_path, 'wb') as f:
-                                    for chunk in r:
-                                        f.write(chunk)
-                                print('    >第二次下载成功')
-                            except:
-                                fail_times += 1
-                                fail_message = '    >第' + str(fail_times) + '个失败！下载fanart.jpg失败：' + cover_url + '，\\' + root.lstrip(path) + '\\' + file + '\n'
-                                print(fail_message, end='')
-                                fail_list.append(fail_message)
-                                write_fail(fail_message)
                                 continue
-                        # 下载 poster
-                        # 默认的 全标题.jpg封面
-                        poster_path = root + '\\' + new_mp4 + '-poster.jpg'
-                        # 裁剪 海报
-                        img = Image.open(fanart_path)
-                        w = img.width  # 图片的宽
-                        h = img.height  # 图片的高
+                            print('    >重命名文件夹完成')
+                    else:
+                        if not os.path.exists(root + '\\' + new_folder):  # 已经存在目标文件夹
+                            os.makedirs(root + '\\' + new_folder)
                         try:
-                            poster = img.crop((int(w * 0.6), 0, w, h))
-                            poster.save(poster_path, quality=95)
-                            print('    >poster.jpg裁剪成功')
+                            os.rename(root + '\\' + file, root + '\\' + new_folder + '\\' + file)  # 就把影片放进去
+                            new_root = root + '\\' + new_folder  # 在当前文件夹下再创建新文件夹
+                            print('    >创建独立的文件夹完成')
                         except:
                             fail_times += 1
-                            fail_message = '    >第' + str(fail_times) + '个失败！poster裁剪失败，请手动裁剪它吧：\\' + root.lstrip(
+                            fail_message = '    >第' + str(
+                                fail_times) + '个失败！创建独立的文件夹名失败，影片被后台打开了，或者已经有同番号的文件夹了：\\' + root.lstrip(
                                 path) + '\\' + file + '\n'
                             print(fail_message, end='')
                             fail_list.append(fail_message)
                             write_fail(fail_message)
-                            img.close()
                             continue
-                        img.close()
 
-                    #重命名文件夹
-                    if if_floder == '是':
-                        # 新文件夹名rename_folder
-                        new_folder = ''
-                        for j in rename_folder_list:
-                            if j not in nfo_dict:
-                                new_folder = new_folder + j
-                            elif j != '全部女优':
-                                new_folder = new_folder + nfo_dict[j]
-                            else:
-                                new_folder = new_folder + ' '.join(nfo_dict[j])
-                        # 修改文件夹
-                        if len(dirs) == 0 or (len(dirs) == 1 and dirs[0] == '.actors'):
-                            # 这个影片所在的目录没有其他子目录（len = 0），或者只有存放女优头像的一个子目录（.actors）
-                            newroot_list = root.split('\\')
-                            del newroot_list[-1]
-                            upper2_root = '\\'.join(newroot_list)
-                            new_root = upper2_root + '\\' + new_folder  # 这个影片所在的文件夹就会被重命名
-                        else:
-                            fail_times += 1
-                            fail_message = '    >第' + str(
-                                fail_times) + '个失败！不是独立的文件夹，重命名文件夹失败：\\' + root.lstrip(path) + '\\' + file + '\n'
-                            print(fail_message, end='')
-                            fail_list.append(fail_message)
-                            write_fail(fail_message)
-                            continue
+                #写入nfo开始
+                if if_nfo == '是':
+                    # 开始写入nfo，这nfo格式是参考的emby的nfo
+                    info_path = new_root + '\\' + new_mp4 + '.nfo'      #nfo存放的地址
+                    f = open(info_path, 'w', encoding="utf-8")
+                    f.write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?>\n"
+                            "<movie>\n"
+                            "  <plot></plot>\n"
+                            "  <title>" + title + "</title>\n"
+                            "  <year>" + nfo_dict['发行年份'] + "</year>\n"
+                            "  <mpaa>NC-17</mpaa>\n"                            
+                            "  <customrating>NC-17</customrating>\n"
+                            "  <countrycode>JP</countrycode>\n"
+                            "  <premiered>" + nfo_dict['发行年月日'] + "</premiered>\n"
+                            "  <release>" + nfo_dict['发行年月日'] + "</release>\n"
+                            "  <runtime>" + nfo_dict['片长'] + "</runtime>\n"
+                            "  <country>日本</country>\n"
+                            "  <studio>" + nfo_dict['制作商'] + "</studio>\n"
+                            "  <id>" + nfo_dict['车牌'] + "</id>\n"
+                            "  <num>" + nfo_dict['车牌'] + "</num>\n")
+                    for i in genres:
                         try:
-                            os.rename(root, new_root)
+                            f.write("  <genre>" + gen_dict[i] + "</genre>\n")
                         except:
                             fail_times += 1
                             fail_message = '    >第' + str(
-                                fail_times) + '个失败！重命名文件夹名失败，内部文件被后台打开了，或者已经有同番号的文件夹了：\\' + root.lstrip(path) + '\\' + file + '\n'
+                                fail_times) + '个失败！写入[特点]失败：' + i + '，\\' + new_root.lstrip(
+                                path) + '\\' + file + '\n'
+                            print(fail_message, end='')
+                            fail_list.append(fail_message)
+                            write_fail(fail_message)
+                    for i in nfo_dict['全部女优']:
+                        f.write("  <actor>\n    <name>" + i + "</name>\n    <type>Actor</type>\n  </actor>\n")
+                    f.write("</movie>\n")
+                    f.close()
+                    print('    >nfo收集完成')
+
+                # 需要下载三张图片
+                if if_jpg == '是':
+                    # 默认的 全标题.jpg封面
+                    fanart_path = new_root + '\\' + new_mp4 + '-fanart.jpg'
+                    # 下载 海报
+                    try:
+                        print('    >正在下载封面：', cover_url)
+                        r = requests.get(cover_url, stream=True, timeout=10)
+                        with open(fanart_path, 'wb') as f:
+                            for chunk in r:
+                                f.write(chunk)
+                        print('    >fanart.jpg下载成功')
+                    except:
+                        try:
+                            print('    >尝试下载fanart失败，正在尝试第二次下载...')
+                            r = requests.get(cover_url, stream=True, timeout=10)
+                            with open(fanart_path, 'wb') as f:
+                                for chunk in r:
+                                    f.write(chunk)
+                            print('    >第二次下载成功')
+                        except:
+                            fail_times += 1
+                            fail_message = '    >第' + str(fail_times) + '个失败！下载fanart.jpg失败：' + cover_url + '，\\' + new_root.lstrip(path) + '\\' + file + '\n'
                             print(fail_message, end='')
                             fail_list.append(fail_message)
                             write_fail(fail_message)
                             continue
-                        print('    >修改文件夹名完成')
-                except:
-                    fail_times += 1
-                    fail_message = '    >第' + str(
-                        fail_times) + '个失败！同一车牌有多部影片，请再次整理该文件夹：\\' + root.lstrip(path) + '\\' + file + '\n'
-                    print(fail_message, end='')
-                    fail_list.append(fail_message)
-                    write_fail(fail_message)
+                    # 下载 poster
+                    # 默认的 全标题.jpg封面
+                    poster_path = new_root + '\\' + new_mp4 + '-poster.jpg'
+                    # 裁剪 海报
+                    img = Image.open(fanart_path)
+                    w = img.width  # fanart的宽
+                    h = img.height  # fanart的高
+                    ew = int(0.653 * h)  # poster的宽
+                    ex = w - ew  # x坐标
+                    if if_face == '是':
+                        ex = image_cut(fanart_path, client)  # 鼻子的x坐标  0.704 0.653
+                        if ex + ew/2 > w:     # 鼻子 + 一半poster宽超出poster右边
+                            ex = w - ew       # 以右边为poster
+                        elif ex - ew/2 < 0:   # 鼻子 - 一半poster宽超出poster左边
+                            ex = 0            # 以左边为poster
+                        else:                 # 不会超出poster
+                            ex = ex-ew/2       # 以鼻子为中心向两边扩展
+                    try:
+                        poster = img.crop((ex, 0, ex + ew, h))
+                        poster.save(poster_path, quality=95)
+                        print('    >poster.jpg裁剪成功')
+                    except:
+                        fail_times += 1
+                        fail_message = '    >第' + str(fail_times) + '个失败！poster裁剪失败，请手动裁剪它吧：\\' + new_root.lstrip(
+                            path) + '\\' + file + '\n'
+                        print(fail_message, end='')
+                        fail_list.append(fail_message)
+                        write_fail(fail_message)
+                        img.close()
+                        continue
+                    img.close()
+
+                # 收集女优头像
+                if if_sculpture == '是':
+                    for each_actor in nfo_dict['全部女优']:
+                        exist_actor_path = '女优头像\\' + each_actor + '.jpg'
+                        jpg_type = '.jpg'
+                        if not os.path.exists(exist_actor_path):  # 女优图片还没有
+                            exist_actor_path = '女优头像\\' + each_actor + '.png'
+                            if not os.path.exists(exist_actor_path):  # 女优图片还没有
+                                fail_times += 1
+                                fail_message = '    >第' + str(
+                                    fail_times) + '个失败！没有女优头像：' + each_actor + '，' + new_root + '\\' + file + '\n'
+                                print(fail_message, end='')
+                                fail_list.append(fail_message)
+                                write_fail(fail_message)
+                                config_actor = configparser.ConfigParser()
+                                config_actor.read('缺失的女优头像.ini')
+                                try:
+                                    each_actor_times = config_actor.get('缺失的女优头像', each_actor)
+                                    config_actor.set("缺失的女优头像", each_actor, str(int(each_actor_times) + 1))
+                                except:
+                                    config_actor.set("缺失的女优头像", each_actor, '1')
+                                config_actor.write(open('缺失的女优头像.ini', "w"))
+                                continue
+                            else:
+                                jpg_type = '.png'
+                        actors_path = new_root + '\\.actors\\'
+                        if not os.path.exists(actors_path):
+                            os.makedirs(actors_path)
+                        shutil.copyfile('女优头像\\' + each_actor + jpg_type,
+                                        actors_path + each_actor + jpg_type)
+                        print('    >女优头像收集完成：', each_actor)
+
             except:
                 fail_times += 1
                 fail_message = '    >第' + str(
