@@ -2,7 +2,8 @@
 收集jav元数据，并规范本地文件（夹）的格式。  
 python3.7  使用pyinstaller打包成exe。
 
-[点击下载exe](https://github-production-release-asset-2e65be.s3.amazonaws.com/199952692/92d2b380-1515-11ea-8485-04d7f31a0da1?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20191202%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20191202T073234Z&X-Amz-Expires=300&X-Amz-Signature=a05bea8035c3604b4a5bdaa37b28a652ef0ff383d6f2792561bc7c45885f449e&X-Amz-SignedHeaders=host&actor_id=44168897&response-content-disposition=attachment%3B%20filename%3DV1.9.7.JAV.zip&response-content-type=application%2Foctet-stream)
+[点击下载exe](https://github-production-release-asset-2e65be.s3.amazonaws.com/199952692/44ea9980-156f-11ea-982e-8341a851c801?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20191202%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20191202T175721Z&X-Amz-Expires=300&X-Amz-Signature=396a8dbf73ce1a06c7cd4c5a33a46ea4c33d8f5cb7d0990c35443ac0684cc806&X-Amz-SignedHeaders=host&actor_id=44168897&response-content-disposition=attachment%3B%20filename%3DV1.9.7%2B.JAVSDT.zip&response-content-type=application%2Foctet-stream)
+或者[蓝奏云](https://www.lanzous.com/i7t1mti)
 
 
 工作流程：  
