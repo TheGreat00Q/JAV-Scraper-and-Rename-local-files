@@ -5,6 +5,9 @@ python3.7  使用pyinstaller打包成exe。
 [点击下载exe](https://github-production-release-asset-2e65be.s3.amazonaws.com/199952692/13b3ad00-15f3-11ea-8583-2a4d8a71299d?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20191203%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20191203T094206Z&X-Amz-Expires=300&X-Amz-Signature=591f115088b63e5769bc9d21023a47c11efda36ed12ae217557eabe6b60756e6&X-Amz-SignedHeaders=host&actor_id=44168897&response-content-disposition=attachment%3B%20filename%3DV1.9.7%2B.JAVSDT.zip&response-content-type=application%2Foctet-stream)
 或者[从蓝奏云下载](https://www.lanzous.com/i7tlt3e)
 
+[点击下载emby和kodi女优头像](https://github-production-release-asset-2e65be.s3.amazonaws.com/199952692/40b54680-12f9-11ea-94e9-4e37ce4bec6e?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20191203%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20191203T100239Z&X-Amz-Expires=300&X-Amz-Signature=653ecad743ab1d849e6b1def8fad4b18e1efe888716a4f226fe974fbf7d06ad6&X-Amz-SignedHeaders=host&actor_id=44168897&response-content-disposition=attachment%3B%20filename%3Dactors.zip&response-content-type=application%2Foctet-stream)
+[点击下载jellyfin女优头像](https://github-production-release-asset-2e65be.s3.amazonaws.com/199952692/abfe6180-15f4-11ea-9c0b-cf86d9dc383b?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20191203%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20191203T100311Z&X-Amz-Expires=300&X-Amz-Signature=f13c8e4bd8942884aefe015f369938186147544dfae227fdb07744c64754b655&X-Amz-SignedHeaders=host&actor_id=44168897&response-content-disposition=attachment%3B%20filename%3DPeople.zip&response-content-type=application%2Foctet-stream)
+
 
 工作流程：  
 1、用户选择文件夹，遍历路径下的所有文件。  
