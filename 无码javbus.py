@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-import re, os, configparser, requests, shutil
+import re, os, configparser, requests, shutil, traceback
 from PIL import Image
 from tkinter import filedialog, Tk
 from time import sleep
@@ -46,14 +46,12 @@ class JavFile(object):
         self.name = 'ABC-123.mp4'  # 文件名
         self.car = 'ABC-123'  # 车牌
         self.episodes = 0     # 第几集
-        self.path = ''     # 路径
 
 
 #  main开始
 print('1、如果连不上javbus，请更正防屏蔽地址\n'
-      '2、务必在ini中填写百度人体检测账户\n'
-      '3、无码影片没有简介\n'
-      '4、找不到AV信息，请在javbus上确认，再修改本地视频文件名，如：\n'
+      '2、无码影片没有简介\n'
+      '3、找不到AV信息，请在javbus上确认，再修改本地视频文件名，如：\n'
       '   112314-742-carib-1080p.mp4 => 112314-742.mp4\n'
       '   Heyzo_HD_0733_full.mp4 => Heyzo_0733.mp4\n')
 # 读取配置文件，这个ini文件用来给用户设置重命名的格式和jav网址
@@ -68,7 +66,9 @@ try:
     if_floder = config_settings.get("修改文件夹", "是否重命名或创建独立文件夹？")
     rename_folder = config_settings.get("修改文件夹", "新文件夹的格式")
     if_jpg = config_settings.get("获取两张jpg", "是否获取fanart.jpg和poster.jpg？")
+    if_qunhui = config_settings.get("获取两张jpg", "是否采取群辉video station命名方式？")
     if_sculpture = config_settings.get("kodi专用", "是否收集女优头像")
+    simp_trad = config_settings.get("其他设置", "简繁中文？")
     bus_url = config_settings.get("其他设置", "javbus网址")
     suren_pref = config_settings.get("其他设置", "素人车牌(若有新车牌请自行添加)")
     file_type = config_settings.get("其他设置", "扫描文件类型")
@@ -77,20 +77,23 @@ try:
     apikey = config_settings.get("百度人体检测", "API Key")
     sk = config_settings.get("百度人体检测", "Secret Key")
 except:
-    print('\n这个ini文件被你写“死”了，删除它，然后打开exe自动重新创建ini！')
+    print('\n这个ini文件无法读写，删除它，然后打开“【有码】基于javlibrary.exe”自动重新创建ini！')
     os.system('pause')
 
 
 if if_sculpture == '是':
-    if not os.path.exists('缺失的女优头像.ini'):
+    if not os.path.exists('女优头像'):
+        print('\n“女优头像”文件夹丢失！请把它放进exe的文件夹中！\n')
+        os.system('pause')
+    if not os.path.exists('【缺失的女优头像统计For Kodi】.ini'):
         config_actor = configparser.ConfigParser()
         config_actor.add_section("缺失的女优头像")
         config_actor.set("缺失的女优头像", "女优姓名", "N(次数)")
         config_actor.add_section("说明")
         config_actor.set("说明", "上面的“女优姓名 = N(次数)”的表达式", "后面的N数字表示你有N部(次)影片都在找她的头像，可惜找不到")
         config_actor.set("说明", "你可以去保存一下她的头像jpg到“女优头像”文件夹", "以后就能保存她的头像到影片的文件夹了")
-        config_actor.write(open('缺失的女优头像.ini', "w"))
-        print('\n    >“缺失的女优头像.ini”文件被你玩坏了...正在重写ini...成功！')
+        config_actor.write(open('【缺失的女优头像统计For Kodi】.ini', "w"))
+        print('\n    >“【缺失的女优头像统计For Kodi】.ini”文件被你玩坏了...正在重写ini...成功！')
         print('正在重新读取...', end='')
 print('\n读取ini文件成功!')
 
@@ -101,7 +104,7 @@ suren_list = suren_pref.split('、')        # 素人番号的列表，来自ini�
 rename_mp4_list = rename_mp4.split('+')    # 重命名视频的格式，来自ini文件的rename_mp4
 rename_folder_list = rename_folder.split('+')    # 重命名文件夹的格式，来自ini文件的rename_floder
 type_tuple = tuple(file_type.split('、'))   # 视频文件的类型，来自ini文件的file_type
-gen_dict = {'无特点': '无特点', '高清': '高清', '字幕': '字幕', '推薦作品': '推荐作品', '通姦': '通奸', '淋浴': '淋浴', '舌頭': '舌头', '下流': '下流',
+gen_dict = {'无特点': '无特点', '高清': 'XXXX', '字幕': 'XXXX', '推薦作品': '推荐作品', '通姦': '通奸', '淋浴': '淋浴', '舌頭': '舌头', '下流': '下流',
             '敏感': '敏感', '變態': '变态', '願望': '愿望', '慾求不滿': '慾求不满', '服侍': '服侍', '外遇': '外遇', '訪問': '访问',
             '性伴侶': '性伴侣', '保守': '保守', '購物': '购物', '誘惑': '诱惑', '出差': '出差', '煩惱': '烦恼', '主動': '主动',
             '再會': '再会', '戀物癖': '恋物癖', '問題': '问题', '騙奸': '骗奸', '鬼混': '鬼混', '高手': '高手', '順從': '顺从',
@@ -110,7 +113,7 @@ gen_dict = {'无特点': '无特点', '高清': '高清', '字幕': '字幕', '�
             '第一視角': '第一视角', '洗澡': '洗澡', '首次': '首次', '劇情': '剧情', '約會': '约会', '實拍': '实拍', '同性戀': '同性恋',
             '幻想': '幻想', '淫蕩': '淫荡', '旅行': '旅行', '面試': '面试', '喝酒': '喝酒', '尖叫': '尖叫', '新年': '新年',
             '借款': '借款', '不忠': '不忠', '檢查': '检查', '羞恥': '羞耻', '勾引': '勾引', '新人': '新人', '推銷': '推销',
-            'ブルマ': 'ブルマ', 'AV女優': 'AV女优', '情人': '情人', '丈夫': '丈夫', '辣妹': '辣妹', 'S級女優': 'S级女优',
+            'ブルマ': '运动短裤', 'AV女優': 'AV女优', '情人': '情人', '丈夫': '丈夫', '辣妹': '辣妹', 'S級女優': 'S级女优',
             '白領': '白领', '偶像': '偶像', '兒子': '儿子', '女僕': '女仆', '老師': '老师', '夫婦': '夫妇', '保健室': '保健室',
             '朋友': '朋友', '工作人員': '工作人员', '明星': '明星', '同事': '同事', '面具男': '面具男', '上司': '上司',
             '睡眠系': '睡眠系', '奶奶': '奶奶', '播音員': '播音员', '鄰居': '邻居', '親人': '亲人', '店員': '店员',
@@ -156,7 +159,7 @@ gen_dict = {'无特点': '无特点', '高清': '高清', '字幕': '字幕', '�
             '攝影': '摄影', '野外': '野外', '陰道觀察': '阴道观察', 'SM': 'SM', '灌入精液': '灌入精液', '受虐': '受虐',
             '綁縛': '绑缚', '偷拍': '偷拍', '異物插入': '异物插入', '電話': '电话', '公寓': '公寓', '遠程操作': '远程操作',
             '偷窺': '偷窥', '踩踏': '踩踏', '無套': '无套', '企劃物': '企划物', '獨佔動畫': '独佔动画', '10代': '10代',
-            '1080p': '1080p', '人氣系列': '人气系列', '60fps': '60fps', '超VIP': '超VIP', '投稿': '投稿', 'VIP': 'VIP',
+            '1080p': 'XXXX', '人氣系列': '人气系列', '60fps': 'XXXX', '超VIP': '超VIP', '投稿': '投稿', 'VIP': 'VIP',
             '椅子': '椅子', '風格出眾': '风格出众', '首次作品': '首次作品', '更衣室': '更衣室', '下午': '下午', 'KTV': 'KTV',
             '白天': '白天', '最佳合集': '最佳合集', 'VR': 'VR', '動漫': '动漫', '酒店': '酒店', '密室': '密室', '車': '车',
             '床': '床', '陽台': '阳台', '公園': '公园', '家中': '家中', '公交車': '公交车', '公司': '公司', '門口': '门口',
@@ -226,14 +229,14 @@ gen_dict = {'无特点': '无特点', '高清': '高清', '字幕': '字幕', '�
             '覆面・マスク': '蒙面具', 'ハイクオリティVR': '高品质VR', 'ヘルス・ソープ': '保健香皂',
             'ホテル': '旅馆', 'アクメ・オーガズム': '绝顶高潮', '花嫁': '花嫁', 'デート': '约会',
             '軟体': '软体', '娘・養女': '养女', 'スパンキング': '打屁股', 'スワッピング・夫婦交換': '夫妇交换',
-            '部下・同僚': '部下・同僚', '胸チラ': '露胸', 'バック': '后卫', 'エロス': 'エロス',
-            '男の潮吹き': '男の潮吹き', '女上司': '女上司', 'セクシー': '性感美女', '受付嬢': '接待小姐', 'ノーブラ': '不穿胸罩',
+            '部下・同僚': '部下・同僚', '胸チラ': '露胸', 'バック': '后卫', 'エロス': '爱的欲望',
+            '男の潮吹き': '男人高潮', '女上司': '女上司', 'セクシー': '性感美女', '受付嬢': '接待小姐', 'ノーブラ': '不穿胸罩',
             '白目・失神': '白眼失神', 'M女': 'M女', '女王様': '女王大人', 'ノーパン': '不穿内裤', 'セレブ': '名流',
             '病院・クリニック': '医院诊所', '面接': '面试', 'お風呂': '浴室', '叔母さん': '叔母阿姨', '罵倒': '骂倒',
             'お爺ちゃん': '爷爷', '逆レイプ': '强奸小姨子', 'ディルド': 'ディルド', 'ヨガ': '瑜伽',
             '飲み会・合コン': '酒会、联谊会', '部活・マネージャー': '社团经理', 'お婆ちゃん': '外婆',
-            'ビジネススーツ': '商务套装', 'チアガール': '啦啦队女孩', 'ママ友': '妈妈的朋友', 'エマニエル': 'エマニエル',
-            '妄想族': '妄想族', '蝋燭': '蝋烛', '鼻フック': '鼻钩儿', }                   # 特点
+            'ビジネススーツ': '商务套装', 'チアガール': '啦啦队女孩', 'ママ友': '妈妈的朋友', 'エマニエル': '片商Emanieru熟女塾',
+            '妄想族': '妄想族', '蝋燭': '蜡烛', '鼻フック': '鼻钩儿', }                   # 特点
 
 start_key = ''
 while start_key == '':
@@ -266,10 +269,10 @@ while start_key == '':
                     if str(alpg) != 'None':
                         if alpg.group(1).upper() in suren_list:  # 如果这是素人影片，告诉一下用户，它们需要另外处理
                             fail_times += 1
-                            fail_message = '第' + str(fail_times) + '个失败！素人影片：\\' + root.lstrip(path) + '\\' + file + '\n'
+                            fail_message = '第' + str(fail_times) + '个警告！素人影片：\\' + root.lstrip(path) + '\\' + raw_file + '\n'
                             print('>>' + fail_message, end='')
                             fail_list.append('    >' + fail_message)
-                            write_fail('>>' + fail_message)
+                            write_fail('    >' + fail_message)
                             continue
                     video_type = '.' + str(raw_file.split('.')[-1])  # 文件类型的长度，如：mp4是3，rmvb是4
                     if car_num not in cars_dic:
@@ -290,9 +293,9 @@ while start_key == '':
             if len(cars_dic) > 1 or videos_num > len(car_videos) or len(dirs) > 1 or (
                     len(dirs) == 1 and dirs[0] != '.actors'):
                 # 当前文件夹下， 车牌不止一个，还有其他非jav视频，有其他文件夹
-                separate_floder = False
+                separate_folder = False
             else:
-                separate_floder = True
+                separate_folder = True
         else:
             continue
 
@@ -361,7 +364,7 @@ while start_key == '':
                             path) + '\\' + file + '\n'
                         print('>>' + fail_message, end='')
                         fail_list.append('    >' + fail_message)
-                        write_fail('>>' + fail_message)
+                        write_fail('    >' + fail_message)
                         continue
                 else:  # 无码找不到
                     # 获取nfo信息的javbus搜索网页
@@ -387,7 +390,7 @@ while start_key == '':
                         path) + '\\' + file + '\n'
                     print('>>' + fail_message, end='')
                     fail_list.append('    >' + fail_message)
-                    write_fail('>>' + fail_message)
+                    write_fail('    >' + fail_message)
                     continue
                 try:
                     bav_rqs = requests.get(bav_url, timeout=10)
@@ -405,15 +408,20 @@ while start_key == '':
                 # 正则匹配 影片信息 开始！
                 # title的开头是车牌号，而我想要后面的纯标题
                 try:
-                    title = re.search(r'<title>(.+?) - JavBus</title>', bav_html).group(1)   # 这边匹配番号
+                    title = re.search(r'<title>(.+?) - JavBus</title>', bav_html, re.DOTALL).group(1)   # 这边匹配番号
                 except:
                     fail_times += 1
-                    fail_message = '第' + str(fail_times) + '个失败！页面上找不到AV信息：' + search_url + '，\\' + root.lstrip(
+                    fail_message = '第' + str(fail_times) + '个失败！页面上找不到AV信息：' + bav_url + '，\\' + root.lstrip(
                         path) + '\\' + file + '\n'
                     print('>>' + fail_message, end='')
                     fail_list.append('    >' + fail_message)
-                    write_fail('>>' + fail_message)
+                    write_fail('    >' + fail_message)
                     continue
+
+                # 去除title中的特殊字符
+                title = title.replace('&', '和').replace('\\', '#').replace('/', '#').replace(':', '：') \
+                    .replace('*', '#').replace('?', '？').replace('"', '#').replace('<', '【').replace('>', '】') \
+                    .replace('|', '#').replace('＜', '【').replace('＞', '】')
                 # 处理影片的标题过长
                 if len(title) > 50:
                     title_easy = title[:50]
@@ -430,20 +438,24 @@ while start_key == '':
                     nfo_dict['导演'] = directorg.group(1)
                 else:
                     nfo_dict['导演'] = '未知导演'
-                # 制作商 製作商:</span> <a href="https://www.cdnbus.work/uncensored/studio/3n">カリビアンコム</a>
+                # 片商 製作商:</span> <a href="https://www.cdnbus.work/uncensored/studio/3n">カリビアンコム</a>
                 studiog = re.search(r'製作商:</span> <a href=".+?">(.+?)</a>', bav_html)
                 if str(studiog) != 'None':
-                    nfo_dict['制作商'] = studiog.group(1)
+                    nfo_dict['片商'] = studiog.group(1)
                 else:
-                    nfo_dict['制作商'] = '未知制作商'
+                    nfo_dict['片商'] = '未知片商'
                 # 發行日期:</span> 2019-03-06</p>
                 premieredg = re.search(r'發行日期:</span> (.+?)</p>', bav_html)
                 if str(premieredg) != 'None':
                     nfo_dict['发行年月日'] = premieredg.group(1)
                     nfo_dict['发行年份'] = nfo_dict['发行年月日'][0:4]
+                    nfo_dict['月'] = nfo_dict['发行年月日'][5:7]
+                    nfo_dict['日'] = nfo_dict['发行年月日'][8:10]
                 else:
                     nfo_dict['发行年月日'] = '1970-01-01'
                     nfo_dict['发行年份'] = '1970'
+                    nfo_dict['月'] = '01'
+                    nfo_dict['日'] = '01'
                 # 片长 <td><span class="text">150</span> 分钟</td>
                 runtimeg = re.search(r'長度:</span> (.+?)分鐘</p>', bav_html)
                 if str(runtimeg) != 'None':
@@ -458,8 +470,10 @@ while start_key == '':
                 else:
                     nfo_dict['全部女优'] = ['未知演员']
                     nfo_dict['首个女优'] = '未知演员'
+                nfo_dict['标题'] = nfo_dict['标题'].rstrip(nfo_dict['首个女优'])
                 # 特点 <span class="genre"><a href="https://www.cdnbus.work/uncensored/genre/gre085">自慰</a></span>
                 genres = re.findall(r'<span class="genre"><a href=".+?">(.+?)</a></span>', bav_html)
+                genres = [i for i in genres if i != '字幕' and i != '高清' and i != '1080p' and i != '60fps']
                 if len(genres) == 0:
                     genres = ['无特点']
                 if '-c.' in file or '-C.' in file:
@@ -470,8 +484,7 @@ while start_key == '':
                 if str(coverg) != 'None':
                     cover_url = coverg.group(1)
                 #######################################################################
-                nfo_dict['标题'] = nfo_dict['标题'].replace('\\', '#').replace('/', '#').replace(':', '：')\
-                    .replace('*', '#').replace('?', '？').replace('"', '#').replace('<', '【').replace('>', '】').replace('|', '#').rstrip(nfo_dict['首个女优'])
+                # title = title.rstrip(nfo_dict['首个女优'])
 
                 # 重命名视频
                 new_mp4 = file.rstrip(video_type)
@@ -519,7 +532,7 @@ while start_key == '':
                         else:
                             new_folder = new_folder + ' '.join(nfo_dict[j])
                     new_folder = new_folder.rstrip(' ')
-                    if separate_floder:
+                    if separate_folder:
                         if cars_dic[car_num] == 1 or (
                                 cars_dic[car_num] > 1 and cars_dic[car_num] == srt.episodes):  # 同一车牌有多部，且这是最后一部，才会重命名
                             newroot_list = root.split('\\')
@@ -573,20 +586,19 @@ while start_key == '':
                             "  <release>" + nfo_dict['发行年月日'] + "</release>\n"
                             "  <runtime>" + nfo_dict['片长'] + "</runtime>\n"
                             "  <country>日本</country>\n"
-                            "  <studio>" + nfo_dict['制作商'] + "</studio>\n"
+                            "  <studio>" + nfo_dict['片商'] + "</studio>\n"
                             "  <id>" + nfo_dict['车牌'] + "</id>\n"
                             "  <num>" + nfo_dict['车牌'] + "</num>\n")
-                    for i in genres:
-                        try:
+                    if simp_trad == '简':
+                        for i in genres:
                             f.write("  <genre>" + gen_dict[i] + "</genre>\n")
-                        except:
-                            fail_times += 1
-                            fail_message = '    >第' + str(
-                                fail_times) + '个失败！写入[特点]失败：' + i + '，\\' + new_root.lstrip(
-                                path) + '\\' + file + '\n'
-                            print(fail_message, end='')
-                            fail_list.append(fail_message)
-                            write_fail(fail_message)
+                        for i in genres:
+                            f.write("  <tag>" + gen_dict[i] + "</tag>\n")
+                    else:
+                        for i in genres:
+                            f.write("  <genre>" + i + "</genre>\n")
+                        for i in genres:
+                            f.write("  <tag>" + i + "</tag>\n")
                     for i in nfo_dict['全部女优']:
                         f.write("  <actor>\n    <name>" + i + "</name>\n    <type>Actor</type>\n  </actor>\n")
                     f.write("</movie>\n")
@@ -596,7 +608,12 @@ while start_key == '':
                 # 需要下载三张图片
                 if if_jpg == '是':
                     # 默认的 全标题.jpg封面
-                    fanart_path = new_root + '\\' + new_mp4 + '-fanart.jpg'
+                    if if_qunhui != '是':
+                        fanart_path = new_root + '\\' + new_mp4 + '-fanart.jpg'
+                        poster_path = new_root + '\\' + new_mp4 + '-poster.jpg'
+                    else:
+                        fanart_path = new_root + '\\' + new_mp4 + '.jpg'
+                        poster_path = new_root + '\\' + new_mp4 + '.png'
                     # 下载 海报
                     try:
                         print('    >正在下载封面：', cover_url)
@@ -622,7 +639,6 @@ while start_key == '':
                             continue
                     # 下载 poster
                     # 默认的 全标题.jpg封面
-                    poster_path = new_root + '\\' + new_mp4 + '-poster.jpg'
                     # 裁剪 海报
                     img = Image.open(fanart_path)
                     w = img.width  # fanart的宽
@@ -651,6 +667,8 @@ while start_key == '':
                         img.close()
                         continue
                     img.close()
+                    if if_qunhui == '是':
+                        shutil.copyfile(fanart_path, new_root + '\\Backdrop.jpg')
 
                 # 收集女优头像
                 if if_sculpture == '是':
@@ -667,13 +685,13 @@ while start_key == '':
                                 fail_list.append(fail_message)
                                 write_fail(fail_message)
                                 config_actor = configparser.ConfigParser()
-                                config_actor.read('缺失的女优头像.ini')
+                                config_actor.read('【缺失的女优头像统计For Kodi】.ini')
                                 try:
                                     each_actor_times = config_actor.get('缺失的女优头像', each_actor)
                                     config_actor.set("缺失的女优头像", each_actor, str(int(each_actor_times) + 1))
                                 except:
                                     config_actor.set("缺失的女优头像", each_actor, '1')
-                                config_actor.write(open('缺失的女优头像.ini', "w"))
+                                config_actor.write(open('【缺失的女优头像统计For Kodi】.ini', "w"))
                                 continue
                             else:
                                 jpg_type = '.png'
@@ -685,6 +703,8 @@ while start_key == '':
                         print('    >女优头像收集完成：', each_actor)
 
             except:
+                print('如果多次看到以下信息，请截图给作者！')
+                print(traceback.format_exc())
                 fail_times += 1
                 fail_message = '    >第' + str(
                     fail_times) + '个失败！发生未知错误，如一直在该影片报错请联系作者：\\' + root.lstrip(path) + '\\' + file + '\n'
