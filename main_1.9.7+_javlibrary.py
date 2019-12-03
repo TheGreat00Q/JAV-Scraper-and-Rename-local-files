@@ -1,11 +1,11 @@
 # -*- coding:utf-8 -*-
-import re, os, configparser, time, hashlib, json, requests, shutil
+import re, os, configparser, time, hashlib, json, requests, shutil, traceback
 from PIL import Image
 from tkinter import filedialog, Tk
 from time import sleep
 
 
-# get_directory功能是 获取用户选取的文件夹路径
+# 获取用户选取的文件夹路径，返回路径str
 def get_directory():
     directory_root = Tk()
     directory_root.withdraw()
@@ -21,25 +21,25 @@ def get_directory():
         return temp_path
 
 
-# 功能为记录错误txt
+# 记录错误txt，无返回
 def write_fail(fail_m):
     record_txt = open('【记得清理它】失败记录.txt', 'a', encoding="utf-8")
     record_txt.write(fail_m)
     record_txt.close()
 
 
-# 调用百度翻译API接口
-def tran(id, key, word):
+# 调用百度翻译API接口，返回中文简介str
+def tran(api_id, key, word, to_lang):
     # init salt and final_sign
     salt = str(time.time())[:10]
-    final_sign = id + word + salt + key
+    final_sign = api_id + word + salt + key
     final_sign = hashlib.md5(final_sign.encode("utf-8")).hexdigest()
     # 表单paramas
     paramas = {
         'q': word,
         'from': 'jp',
-        'to': 'zh',
-        'appid': '%s' % id,
+        'to': to_lang,
+        'appid': '%s' % api_id,
         'salt': '%s' % salt,
         'sign': '%s' % final_sign
     }
@@ -50,7 +50,7 @@ def tran(id, key, word):
         return json_reads['trans_result'][0]['dst']
     except:
         print('    >正在尝试重新日译中...')
-        return tran(id, key, word)
+        return tran(api_id, key, word)
 
 
 # 获取一个arzon_cookie，返回cookie
@@ -66,15 +66,11 @@ class JavFile(object):
         self.name = 'ABC-123.mp4'  # 文件名
         self.car = 'ABC-123'  # 车牌
         self.episodes = 0     # 第几集
-        self.path = ''     # 路径
 
 
 #  main开始
 print('1、避开12:00-14：00和18:00-1:00，访问javlibrary和arzon很慢。\n'
       '2、若一直连不上javlibrary，请在ini中更新网址\n')
-pwd_uppers = os.getcwd().split('\\')
-del pwd_uppers[-1]
-pwd_upper = '\\'.join(pwd_uppers)
 # 读取配置文件，这个ini文件用来给用户设置重命名的格式和jav网址
 print('正在读取ini中的设置...', end='')
 config_settings = configparser.RawConfigParser()
@@ -90,7 +86,9 @@ try:
     # classify_root = config_settings.get("归类影片", "归类的根目录")
     # classify_basis = config_settings.get("归类影片", "归类的标准")
     if_jpg = config_settings.get("获取两张jpg", "是否获取fanart.jpg和poster.jpg？")
+    if_qunhui = config_settings.get("获取两张jpg", "是否采取群辉video station命名方式？")
     if_sculpture = config_settings.get("kodi专用", "是否收集女优头像")
+    simp_trad = config_settings.get("其他设置", "简繁中文？")
     library_url = config_settings.get("其他设置", "javlibrary网址")
     bus_url = config_settings.get("其他设置", "javbus网址")
     suren_pref = config_settings.get("其他设置", "素人车牌(若有新车牌请自行添加)")
@@ -110,20 +108,22 @@ except:
         config_settings.set("重命名影片", "重命名影片的格式", "车牌+空格+标题")
         config_settings.add_section("修改文件夹")
         config_settings.set("修改文件夹", "是否重命名或创建独立文件夹？", "是")
-        config_settings.set("修改文件夹", "新文件夹的格式", "【+首个女优+】+车牌")
-        # config_settings.add_section("归类影片")
-        # config_settings.set("归类影片", "是否归类影片？", "是")
-        # config_settings.set("归类影片", "归类的根目录", "所选文件夹")
-        # config_settings.set("归类影片(开发中)", "归类的标准", "首个女优")
+        config_settings.set("修改文件夹", "新文件夹的格式", "【+全部女优+】+车牌")
+        config_settings.add_section("归类影片(开发中)")
+        config_settings.set("归类影片(开发中)", "是否归类影片？", "否")
+        config_settings.set("归类影片(开发中)", "归类的根目录", "所选文件夹")
+        config_settings.set("归类影片(开发中)", "归类的标准", "发行年份\\车牌前缀\\首个女优")
         config_settings.add_section("获取两张jpg")
         config_settings.set("获取两张jpg", "是否获取fanart.jpg和poster.jpg？", "是")
+        config_settings.set("获取两张jpg", "是否采取群辉video station命名方式？", "否")
         config_settings.add_section("kodi专用")
         config_settings.set("kodi专用", "是否收集女优头像", "否")
         config_settings.add_section("emby服务端")
         config_settings.set("emby服务端", "网址", "http://localhost:8096/")
         config_settings.set("emby服务端", "API ID", "12345678")
         config_settings.add_section("其他设置")
-        config_settings.set("其他设置", "javlibrary网址", "http://www.x39n.com/cn/")
+        config_settings.set("其他设置", "简繁中文？", "简")
+        config_settings.set("其他设置", "javlibrary网址", "http://www.x39n.com/")
         config_settings.set("其他设置", "javbus网址", "https://www.buscdn.work/")
         config_settings.set("其他设置", "素人车牌(若有新车牌请自行添加)", "MIUM、NTK、ARA、GANA、LUXU、DCV、MAAN、HOI、NAMA、SWEET、SIRO、SCUTE、CUTE、SQB")
         config_settings.set("其他设置", "扫描文件类型", "mp4、mkv、avi、wmv、iso、rmvb、MP4、MKV、AVI、WMV、ISO、RMVB")
@@ -141,19 +141,22 @@ except:
         print('写入“ini的设置会影响所有exe的操作结果.ini”文件成功，如果需要修改重命名格式请重新打开ini修改，然后重新启动程序！')
         os.system('pause')
     except:
-        print('\n这个ini文件被你写“死”了，删除它，然后打开exe自动重新创建ini！')
+        print('\n这个ini文件无法读写，删除它，然后打开exe自动重新创建ini！')
         os.system('pause')
 
 if if_sculpture == '是':
-    if not os.path.exists('缺失的女优头像.ini'):
+    if not os.path.exists('女优头像'):
+        print('\n“女优头像”文件夹丢失！请把它放进exe的文件夹中！\n')
+        os.system('pause')
+    if not os.path.exists('【缺失的女优头像统计For Kodi】.ini'):
         config_actor = configparser.ConfigParser()
         config_actor.add_section("缺失的女优头像")
         config_actor.set("缺失的女优头像", "女优姓名", "N(次数)")
         config_actor.add_section("说明")
         config_actor.set("说明", "上面的“女优姓名 = N(次数)”的表达式", "后面的N数字表示你有N部(次)影片都在找她的头像，可惜找不到")
         config_actor.set("说明", "你可以去保存一下她的头像jpg到“女优头像”文件夹", "以后就能保存她的头像到影片的文件夹了")
-        config_actor.write(open('缺失的女优头像.ini', "w"))
-        print('\n    >“缺失的女优头像.ini”文件被你玩坏了...正在重写ini...成功！')
+        config_actor.write(open('【缺失的女优头像统计For Kodi】.ini', "w"))
+        print('\n    >“【缺失的女优头像统计For Kodi】.ini”文件被你玩坏了...正在重写ini...成功！')
         print('正在重新读取...', end='')
 print('\n读取ini文件成功!')
 
@@ -165,10 +168,18 @@ if if_plot == '是':
     except:
         print('连接arzon失败，请避开网络高峰期！请重启程序！\n')
         os.system('pause')
+
+if simp_trad == '简':
+    library_url += 'cn/'
+    t_lang = 'zh'
+else:
+    library_url += 'tw/'
+    t_lang = 'cht'
+
 nfo_dict = {'空格': ' '}                   # 用于暂时存放影片信息，女优，标题等
 suren_list = suren_pref.split('、')        # 素人番号的列表，来自ini文件的suren_pref
 rename_mp4_list = rename_mp4.split('+')    # 重命名视频的格式，来自ini文件的rename_mp4
-rename_folder_list = rename_folder.split('+')    # 重命名文件夹的格式，来自ini文件的rename_floder
+rename_folder_list = rename_folder.split('+')    # 重命名文件夹的格式，来自ini文件的rename_folder
 type_tuple = tuple(file_type.split('、'))   # 视频文件的类型，来自ini文件的file_type
 
 
@@ -187,9 +198,9 @@ while start_key == '':
         if if_exnfo == '是' and files and (files[-1].endswith('nfo') or (len(files) > 1 and files[-2].endswith('nfo'))):
             continue
         # 对这一层文件夹进行评估,有多少视频，有多少同车牌视频，是不是独立文件夹
-        car_videos= []        # 存放：需要整理的jav的结构体
-        cars_dic = {}         # 存放：每一部jav有几集？
-        videos_num = 0        # 当前文件夹中视频的数量，可能有视频不是jav
+        car_videos = []        # 存放：需要整理的jav的结构体
+        cars_dic = {}          # 存放：每一部jav有几集？
+        videos_num = 0         # 当前文件夹中视频的数量，可能有视频不是jav
         for raw_file in files:
             # 判断是不是视频，得到车牌号
             if raw_file.endswith(type_tuple):
@@ -201,31 +212,31 @@ while start_key == '':
                     car_num = num_pref + '-' + num_suf
                     if num_pref in suren_list:                             # 如果这是素人影片，告诉一下用户，它们需要另外处理
                         fail_times += 1
-                        fail_message = '第' + str(fail_times) + '个失败！素人影片：\\' + root.lstrip(path) + '\\' + raw_file + '\n'
+                        fail_message = '第' + str(fail_times) + '个警告！素人影片：\\' + root.lstrip(path) + '\\' + raw_file + '\n'
                         print('>>' + fail_message, end='')
                         fail_list.append('    >' + fail_message)
-                        write_fail('>>' + fail_message)
+                        write_fail('    >' + fail_message)
                         continue  # 素人影片不参与下面的整理
-                    video_type = '.' + str(raw_file.split('.')[-1])  # 文件类型的长度，如：mp4是3，rmvb是4
-                    if car_num not in cars_dic:
-                        cars_dic[car_num] = 1
+                    video_type = '.' + str(raw_file.split('.')[-1])  # 文件类型，如：mp4
+                    if car_num not in cars_dic:     # cars_dic中没有这个车牌，表示这一层文件夹下新发现一个车牌
+                        cars_dic[car_num] = 1        # 这个新车牌有了第一集
                     else:
-                        cars_dic[car_num] += 1
+                        cars_dic[car_num] += 1       # 已经有这个车牌了，加一集
                     jav_file = JavFile()
                     jav_file.car = car_num
                     jav_file.name = raw_file
-                    jav_file.episodes = cars_dic[car_num]
+                    jav_file.episodes = cars_dic[car_num]  # 这个jav的车牌，文件名，第几集
                     car_videos.append(jav_file)
                 else:
                     continue
             else:
                 continue
-        if cars_dic:
+        if cars_dic:  # 这一层文件夹下有jav
             if len(cars_dic) > 1 or videos_num > len(car_videos) or len(dirs) > 1 or (len(dirs) == 1 and dirs[0] != '.actors'):
                 # 当前文件夹下， 车牌不止一个，还有其他非jav视频，有其他文件夹
-                separate_floder = False
+                separate_folder = False   # 不是独立的文件夹
             else:
-                separate_floder = True
+                separate_folder = True    # 这一层文件夹是这部jav的独立文件夹
         else:
             continue
 
@@ -250,10 +261,10 @@ while start_key == '':
                         print('    >第二次尝试成功！')
                     except:
                         fail_times += 1
-                        fail_message = '    >第' + str(fail_times) + '个失败！打开javlibrary搜索页面失败：' + search_url + '，\\' + root.lstrip(path) + '\\' + file + '\n'
-                        print(fail_message, end='')
-                        fail_list.append(fail_message)
-                        write_fail( fail_message)
+                        fail_message = '第' + str(fail_times) + '个失败！打开javlibrary搜索页面失败：' + search_url + '，\\' + root.lstrip(path) + '\\' + file + '\n'
+                        print('>>' + fail_message, end='')
+                        fail_list.append('    >' + fail_message)
+                        write_fail('    >' + fail_message)
                         continue
                 # 搜索结果的网页，大部分情况就是这个影片的网页，也有可能是多个结果的网页
                 # 尝试找标题，第一种情况：找得到，就是这个影片的网页
@@ -273,10 +284,10 @@ while start_key == '':
                             jav_html = jav_rqs.text
                         except:
                             fail_times += 1
-                            fail_message = '    >第' + str(fail_times) + '个失败！打开javlibrary搜索页面上的第一个AV失败：' + first_url + '，\\' + root.lstrip(path) + '\\' + file+ '\n'
-                            print(fail_message, end='')
-                            fail_list.append(fail_message)
-                            write_fail( fail_message)
+                            fail_message = '>第' + str(fail_times) + '个失败！打开javlibrary搜索页面上的第一个AV失败：' + first_url + '，\\' + root.lstrip(path) + '\\' + file+ '\n'
+                            print('>>' + fail_message, end='')
+                            fail_list.append('    >' + fail_message)
+                            write_fail('    >' + fail_message)
                             continue
                         # 找到标题，留着马上整理信息用
                         title = re.search(r'<title>([a-zA-Z]{1,6}-\d{1,5}.+?) - JAVLibrary</title>', jav_html).group(1)
@@ -286,9 +297,13 @@ while start_key == '':
                         fail_message = '第' + str(fail_times) + '个失败！找不到AV信息，无码？新系列素人？年代久远？：\\' + root.lstrip(path) + '\\' + file + '\n'
                         print('>>' + fail_message, end='')
                         fail_list.append('    >' + fail_message)
-                        write_fail( '>>' + fail_message)
+                        write_fail('>>' + fail_message)
                         continue
 
+                # 去除title中的特殊字符
+                title = title.replace('&', '和').replace('\\', '#').replace('/', '#').replace(':', '：') \
+                    .replace('*', '#').replace('?', '？').replace('"', '#').replace('<', '【').replace('>', '】')\
+                    .replace('|', '#').replace('＜', '【').replace('＞', '】')
                 print('>>正在处理：', title)
                 # 处理影片的标题过长
                 if len(title) > 50:
@@ -297,30 +312,30 @@ while start_key == '':
                     title_easy = title
                 # 正则匹配 影片信息 开始！
                 # title的开头是车牌号，而我想要后面的纯标题
-                nfo_dict['标题'] = re.search(r'.+?-\d+?[a-z]? (.+)', title_easy).group(1)   # 这边匹配番号，[a-z]可能很奇怪，但javlibrary上的标题的番号后面有时有一个奇怪的字母
+                car_titleg = re.search(r'(.+?) (.+)', title_easy)  # 这边匹配番号，[a-z]可能很奇怪，
+                nfo_dict['标题'] = car_titleg.group(2)
                 # 车牌号
-                nfo_dict['车牌'] = re.search(r'(.+?-\d+?[a-z]?) ', title_easy).group(1)
-                # 制作商
+                nfo_dict['车牌'] = car_titleg.group(1)
+                # 片商
                 studiog = re.search(r'rel="tag">(.+?)</a> &nbsp;<span id="maker_', jav_html)
                 if str(studiog) != 'None':
-                    nfo_dict['制作商'] = studiog.group(1)
+                    nfo_dict['片商'] = studiog.group(1)
                 else:
-                    nfo_dict['制作商'] = '未知制作商'
-                # 系列:</span> <a href="https://www.buscdn.work/uncensored/series/1gb">余裕で三連発できちゃう極上の女優</a>
-                av_set = ''
-                setg = re.search(r'系列:</span> <a href=".+?">(.+?)</a>', jav_html)
-                if str(setg) != 'None':
-                    av_set = setg.group(1)
+                    nfo_dict['片商'] = '未知片商'
                 # 上映日
                 premieredg = re.search(r'<td class="text">(\d\d\d\d-\d\d-\d\d)</td>', jav_html)
                 if str(premieredg) != 'None':
                     nfo_dict['发行年月日'] = premieredg.group(1)
                     nfo_dict['发行年份'] = nfo_dict['发行年月日'][0:4]
+                    nfo_dict['月'] = nfo_dict['发行年月日'][5:7]
+                    nfo_dict['日'] = nfo_dict['发行年月日'][8:10]
                 else:
                     nfo_dict['发行年月日'] = '1970-01-01'
                     nfo_dict['发行年份'] = '1970'
+                    nfo_dict['月'] = '01'
+                    nfo_dict['日'] = '01'
                 # 片长 <td><span class="text">150</span> 分钟</td>
-                runtimeg = re.search(r'<td><span class="text">(\d+?)</span> 分钟</td>', jav_html)
+                runtimeg = re.search(r'<td><span class="text">(\d+?)</span>', jav_html)
                 if str(runtimeg) != 'None':
                     nfo_dict['片长'] = runtimeg.group(1)
                 else:
@@ -332,7 +347,7 @@ while start_key == '':
                 else:
                     nfo_dict['导演'] = '未知导演'
                 # 演员们 和 # 第一个演员
-                actors_prag = re.search(r'<td class="header">演员:(.+?)</td>', jav_html, re.DOTALL)
+                actors_prag = re.search(r'<span id="cast(.+?)</td>', jav_html, re.DOTALL)
                 if str(actors_prag) != 'None':
                     actors = re.findall(r'rel="tag">(.+?)</a></span> <span id', actors_prag.group(1))
                     if len(actors) != 0:
@@ -344,6 +359,7 @@ while start_key == '':
                 else:
                     nfo_dict['全部女优'] = ['未知演员']
                     nfo_dict['首个女优'] = '未知演员'
+                nfo_dict['标题'] = nfo_dict['标题'].rstrip(nfo_dict['首个女优'])
                 # 特点
                 genres = re.findall(r'category tag">(.+?)</a></span><span id="genre', jav_html)
                 if len(genres) == 0:
@@ -402,12 +418,11 @@ while start_key == '':
                                     fail_times) + '个失败！连接arzon失败：' + arzon_url + '，\\' + root.lstrip(path) + '\\' + file + '\n'
                                 print(fail_message, end='')
                                 fail_list.append(fail_message)
-                                write_fail( fail_message)
+                                write_fail(fail_message)
                                 plot = '【连接arzon失败！看到此提示请重新整理nfo！】'
                                 break
                         # arzon第一次搜索AV  <dt><a href="https://www.arzon.jp/item_1376110.html" title="限界集落に越してきた人妻 ～村民達の慰みモノにされる日々～"><img src=
-                        AVs = re.findall(r'<a href="(.+?)" title=', search_html)
-                        # print(arzon_html)
+                        AVs = re.findall(r'<h2><a href="(/item.+?)" title=', search_html)
                         # 可能是几个AV的界面
                         if len(AVs) != 0:
                             # 第一个AV网页
@@ -433,7 +448,7 @@ while start_key == '':
                                             fail_times) + '个失败！无法进入第一个搜索结果：' + av_url + '，\\' + root.lstrip(path) + '\\' + file + '\n'
                                         print(fail_message, end='')
                                         fail_list.append(fail_message)
-                                        write_fail( fail_message)
+                                        write_fail(fail_message)
                                         plot = '【连接arzon失败！看到此提示请重新整理nfo！】'
                                         break
                                 ############################################################################
@@ -471,7 +486,7 @@ while start_key == '':
                                                     fail_times) + '个失败！无法进入第二个搜索结果：' + av_url + '，\\' + root.lstrip(path) + '\\' + file + '\n'
                                                 print(fail_message, end='')
                                                 fail_list.append(fail_message)
-                                                write_fail( fail_message)
+                                                write_fail(fail_message)
                                                 plot = '【连接arzon失败！看到此提示请重新整理nfo！】'
                                                 break
                                         ############################################################################
@@ -509,7 +524,7 @@ while start_key == '':
                                                             fail_times) + '个失败！无法进入第三个搜索结果：' + av_url + '，\\' + root.lstrip(path) + '\\' + file + '\n'
                                                         print(fail_message, end='')
                                                         fail_list.append(fail_message)
-                                                        write_fail( fail_message)
+                                                        write_fail(fail_message)
                                                         plot = '【连接arzon失败！看到此提示请重新整理nfo！】'
                                                         break
                                                 ############################################################################
@@ -529,7 +544,7 @@ while start_key == '':
                                                         fail_times) + '个失败！有三个搜索结果：' + arzon_url + '，但找不到简介：\\' + root.lstrip(path) + '\\' + file + '\n'
                                                     print(fail_message, end='')
                                                     fail_list.append(fail_message)
-                                                    write_fail( fail_message)
+                                                    write_fail(fail_message)
                                                     plot = '【查无简介】'
                                                     break
                                             # 第三个页面不是/item_1441697.html
@@ -549,7 +564,7 @@ while start_key == '':
                                             fail_times) + '个失败！有一个搜索结果：' + arzon_url + '，但找不到简介：\\' + root.lstrip(path) + '\\' + file + '\n'
                                         print(fail_message, end='')
                                         fail_list.append(fail_message)
-                                        write_fail( fail_message)
+                                        write_fail(fail_message)
                                         plot = '【查无简介】'
                                         break
                             # 第一个页面就不是/item_1441697.html，arzon搜索不到
@@ -559,7 +574,7 @@ while start_key == '':
                                     fail_times) + '个失败！arzon找不到该影片信息：' + arzon_url + '，可能被下架：\\' + root.lstrip(path) + '\\' + file + '\n'
                                 print(fail_message, end='')
                                 fail_list.append(fail_message)
-                                write_fail( fail_message)
+                                write_fail(fail_message)
                                 plot = '【影片下架，再无简介】'
                                 break
                         # arzon搜索页面实际是18岁验证
@@ -571,7 +586,7 @@ while start_key == '':
                                     fail_times) + '个失败！成人验证，请重启程序：\\' + root.lstrip(path) + '\\' + file + '\n'
                                 print(fail_message, end='')
                                 fail_list.append(fail_message)
-                                write_fail( fail_message)
+                                write_fail(fail_message)
                                 plot = '【连接arzon失败！看到此提示请重新整理nfo！】'
                                 os.system('pause')
                             else:  # 不是成人验证，也没有结果
@@ -580,15 +595,13 @@ while start_key == '':
                                     fail_times) + '个失败！arzon找不到该影片信息，可能被下架：\\' + root.lstrip(path) + '\\' + file + '\n'
                                 print(fail_message, end='')
                                 fail_list.append(fail_message)
-                                write_fail( fail_message)
+                                write_fail(fail_message)
                                 plot = '【影片下架，再无简介】'
                                 break
                     if if_tran == '是':
-                        plot = tran(ID, SK, plot)
+                        plot = tran(ID, SK, plot, t_lang)
                 #######################################################################
-                nfo_dict['标题'] = nfo_dict['标题'].replace('\\', '#').replace('/', '#').replace(':', '：')\
-                    .replace('*', '#').replace('?', '？').replace('"', '#').replace('<', '【').replace('>', '】').replace('|', '#').rstrip(nfo_dict['首个女优'])
-
+                # title = title.rstrip(nfo_dict['首个女优'])
                 # 重命名视频
                 new_mp4 = file.rstrip(video_type).rstrip(' ')
                 if if_mp4 == '是':  # 新文件名
@@ -616,7 +629,7 @@ while start_key == '':
                             path) + '\\' + file + '\n'
                         print(fail_message, end='')
                         fail_list.append(fail_message)
-                        write_fail( fail_message)
+                        write_fail(fail_message)
 
                 # 重命名文件夹
                 new_root = root
@@ -631,7 +644,7 @@ while start_key == '':
                         else:
                             new_folder = new_folder + ' '.join(nfo_dict[j])
                     new_folder = new_folder.rstrip(' ')
-                    if separate_floder:
+                    if separate_folder:
                         if cars_dic[car_num] == 1 or (cars_dic[car_num] > 1 and cars_dic[car_num] == srt.episodes):  # 同一车牌有多部，且这是最后一部，才会重命名
                             newroot_list = root.split('\\')
                             del newroot_list[-1]
@@ -647,7 +660,7 @@ while start_key == '':
                                     path) + '\\' + file + '\n'
                                 print(fail_message, end='')
                                 fail_list.append(fail_message)
-                                write_fail( fail_message)
+                                write_fail(fail_message)
                                 continue
                             print('    >重命名文件夹完成')
                     else:
@@ -664,7 +677,7 @@ while start_key == '':
                                 path) + '\\' + file + '\n'
                             print(fail_message, end='')
                             fail_list.append(fail_message)
-                            write_fail( fail_message)
+                            write_fail(fail_message)
                             continue
 
                 # 写入nfo开始
@@ -687,11 +700,13 @@ while start_key == '':
                             "  <release>" + nfo_dict['发行年月日'] + "</release>\n"
                             "  <runtime>" + nfo_dict['片长'] + "</runtime>\n"
                             "  <country>日本</country>\n"
-                            "  <studio>" + nfo_dict['制作商'] + "</studio>\n"
+                            "  <studio>" + nfo_dict['片商'] + "</studio>\n"
                             "  <id>" + nfo_dict['车牌'] + "</id>\n"
                             "  <num>" + nfo_dict['车牌'] + "</num>\n")
                     for i in genres:
                         f.write("  <genre>" + i + "</genre>\n")
+                    for i in genres:
+                        f.write("  <tag>" + i + "</tag>\n")
                     for i in nfo_dict['全部女优']:
                         f.write("  <actor>\n    <name>" + i + "</name>\n    <type>Actor</type>\n  </actor>\n")
                     f.write("</movie>\n")
@@ -703,7 +718,12 @@ while start_key == '':
                     # 下载海报的地址 cover
                     cover_url = 'http:' + cover
                     # 默认的 全标题.jpg封面
-                    fanart_path = new_root + '\\' + new_mp4 + '-fanart.jpg'
+                    if if_qunhui != '是':
+                        fanart_path = new_root + '\\' + new_mp4 + '-fanart.jpg'
+                        poster_path = new_root + '\\' + new_mp4 + '-poster.jpg'
+                    else:
+                        fanart_path = new_root + '\\' + new_mp4 + '.jpg'
+                        poster_path = new_root + '\\' + new_mp4 + '.png'
                     # 下载 海报
                     try:
                         print('    >正在下载封面：', cover_url)
@@ -727,7 +747,7 @@ while start_key == '':
                                 path) + '\\' + file + '\n'
                             print(fail_message, end='')
                             fail_list.append(fail_message)
-                            write_fail( fail_message)
+                            write_fail(fail_message)
                             continue
                         # DVD封面cover
                         coverg = re.search(r'<a class="bigImage" href="(.+?)">', bav_html)  # 封面图片的正则对象
@@ -745,7 +765,7 @@ while start_key == '':
                                 fail_message = '    >第' + str(fail_times) + '个失败！下载fanart.jpg失败：' + cover_url + '，\\' + new_root.lstrip(path) + '\\' + file + '\n'
                                 print(fail_message, end='')
                                 fail_list.append(fail_message)
-                                write_fail( fail_message)
+                                write_fail(fail_message)
                                 continue
                         else:
                             fail_times += 1
@@ -754,14 +774,13 @@ while start_key == '':
                                 path) + '\\' + file + '\n'
                             print(fail_message, end='')
                             fail_list.append(fail_message)
-                            write_fail( fail_message)
+                            write_fail(fail_message)
                             continue
                     # 裁剪生成 poster
                     try:
                         img = Image.open(fanart_path)
                         w, h = img.size  # fanart的宽
                         ex = int(w*0.52625)
-                        poster_path = new_root + '\\' + new_mp4 + '-poster.jpg'
                         poster = img.crop((ex, 0, w, h))
                         poster.save(poster_path, quality=95)
                         print('    >poster.jpg裁剪成功')
@@ -770,8 +789,10 @@ while start_key == '':
                         fail_message = '    >第' + str(fail_times) + '个失败！poster裁剪失败，请手动裁剪它吧：\\' + new_root.lstrip(path) + '\\' + file + '\n'
                         print(fail_message, end='')
                         fail_list.append(fail_message)
-                        write_fail( fail_message)
+                        write_fail(fail_message)
                         continue
+                    if if_qunhui == '是':
+                        shutil.copyfile(fanart_path, new_root + '\\Backdrop.jpg')
 
                 # 收集女优头像
                 if if_sculpture == '是':
@@ -787,15 +808,15 @@ while start_key == '':
                                     fail_times) + '个失败！没有女优头像：' + each_actor + '，' + new_root + '\\' + file + '\n'
                                 print(fail_message, end='')
                                 fail_list.append(fail_message)
-                                write_fail( fail_message)
+                                write_fail(fail_message)
                                 config_actor = configparser.ConfigParser()
-                                config_actor.read('缺失的女优头像.ini')
+                                config_actor.read('【缺失的女优头像统计For Kodi】.ini')
                                 try:
                                     each_actor_times = config_actor.get('缺失的女优头像', each_actor)
                                     config_actor.set("缺失的女优头像", each_actor, str(int(each_actor_times) + 1))
                                 except:
                                     config_actor.set("缺失的女优头像", each_actor, '1')
-                                config_actor.write(open('缺失的女优头像.ini', "w"))
+                                config_actor.write(open('【缺失的女优头像统计For Kodi】.ini', "w"))
                                 continue
                             else:
                                 jpg_type = '.png'
@@ -807,11 +828,13 @@ while start_key == '':
                         print('    >女优头像收集完成：', each_actor)
 
             except:
+                print('如果多次看到以下信息，请截图给作者！')
+                print(traceback.format_exc())
                 fail_times += 1
-                fail_message = '第' + str(fail_times) + '个失败！发生未知错误，如一直在该影片报错请联系作者：\\' + root.lstrip(path) + '\\' + file + '\n'
-                print('>>' + fail_message, end='')
-                fail_list.append('    >' + fail_message)
-                write_fail( '>>' + fail_message)
+                fail_message = '    >第' + str(fail_times) + '个失败！发生未知错误，如一直在该影片报错请联系作者：\\' + root.lstrip(path) + '\\' + file + '\n'
+                print(fail_message, end='')
+                fail_list.append(fail_message)
+                write_fail(fail_message)
                 continue
     # 完结撒花
     print('\n当前文件夹完成，', end='')
@@ -823,5 +846,5 @@ while start_key == '':
         print('\n“【记得清理它】失败记录.txt”已记录错误\n')
     else:
         print('没有处理失败的AV，干得漂亮！  ', path, '\n')
-
+# os.system('pause')
     start_key = input('回车继续选择文件夹整理：')
