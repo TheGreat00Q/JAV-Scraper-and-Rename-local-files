@@ -21,7 +21,6 @@ def get_directory():
     if work_path == '':
         print('你没有选择目录! 请重新选：')
         sleep(2)
-        # get_directory()
         return get_directory()
     else:
         # askdirectory 获得是 正斜杠 路径C:/，所以下面要把 / 换成 反斜杠\
@@ -147,15 +146,14 @@ while start_key == '':
             continue
         # 对这一层文件夹进行评估,有多少视频，有多少同车牌视频，是不是独立文件夹
         car_videos = []        # 存放：需要整理的jav的结构体
-        cars_dic = {}         # 存放：每一部jav有几集？
+        cars_dic = {}
         videos_num = 0        # 当前文件夹中视频的数量，可能有视频不是jav
         subtitles = False      # 有没有字幕
         for raw_file in files:
             # 判断文件是不是字幕文件
             if raw_file.endswith(('.srt', '.vtt', '.ass',)):
                 subtitles = True
-                break
-        for raw_file in files:
+                continue
             # 判断是不是视频，得到车牌号
             if raw_file.endswith(type_tuple) and not raw_file.startswith('.'):
                 video_num_g = re.search(r'([a-zA-Z]{2,6})-? ?(\d{2,5})', raw_file)
@@ -165,7 +163,7 @@ while start_key == '':
                     if num_pref in suren_list:
                         num_suf = video_num_g.group(2)
                         car_num = num_pref + '-' + num_suf
-                        video_type = '.' + str(raw_file.split('.')[-1])  # 文件类型的长度，如：mp4是3，rmvb是4
+                        video_type = '.' + str(raw_file.split('.')[-1])
                         if car_num not in cars_dic:
                             cars_dic[car_num] = 1
                         else:
@@ -196,6 +194,7 @@ while start_key == '':
             try:
                 car_num = srt.car
                 file = srt.name
+                relative_path = '\\' + root.lstrip(path) + '\\' + file  # 影片的相对于所选文件夹的路径，用于报错
                 # 获取nfo信息的jav321搜索网页
                 params = {
                     'sn': car_num,
@@ -207,7 +206,7 @@ while start_key == '':
                         jav_html = requests.post(url, data=params, headers=headers, timeout=10).text
                     except:
                         fail_times += 1
-                        fail_message = '第' + str(fail_times) + '个失败！连接jav321失败：\\' + root.lstrip(path) + '\\' + file + '\n'
+                        fail_message = '第' + str(fail_times) + '个失败！连接jav321失败：' + url + '，' + relative_path + '\n'
                         print('>>' + fail_message, end='')
                         fail_list.append('    >' + fail_message)
                         write_fail('    >' + fail_message)
@@ -220,7 +219,7 @@ while start_key == '':
                 # 找不到标题，jav321找不到影片
                 else:
                     fail_times += 1
-                    fail_message = '第' + str(fail_times) + '个失败！找不到该车牌的影片：\\' + root.lstrip(path) + '\\' + file + '\n'
+                    fail_message = '第' + str(fail_times) + '个失败！找不到该车牌的影片：' + relative_path + '\n'
                     print('>>' + fail_message, end='')
                     fail_list.append('    >' + fail_message)
                     write_fail('    >' + fail_message)
@@ -343,7 +342,7 @@ while start_key == '':
                     print('    >正在日译中...')
                     plot = tran(ID, SK, title, t_lang)
 
-                # 重命名视频
+                # 1重命名视频
                 new_mp4 = file.rstrip(video_type)
                 if if_mp4 == '是':
                     # 新文件名new_mp4
@@ -365,7 +364,7 @@ while start_key == '':
                     file = new_mp4 + video_type
                     print('    >修改文件名' + cd_msg + '完成')
 
-                # 重命名文件夹
+                # 2重命名文件夹
                 new_root = root
                 if if_folder == '是':
                     # 新文件夹名rename_folder
@@ -396,7 +395,9 @@ while start_key == '':
                         new_root = root + '\\' + new_folder  # 在当前文件夹下再创建新文件夹
                         print('    >创建独立的文件夹完成')
 
-                # 写入nfo
+                # 更新一下relative_path
+                relative_path = '\\' + new_root.lstrip(path) + '\\' + file  # 影片的相对于所选文件夹的路径，用于报错
+                # 3写入nfo
                 if if_nfo:
                     # 写入nfo开始
                     info_path = new_root + '\\' + new_mp4 + '.nfo'
@@ -429,7 +430,7 @@ while start_key == '':
                     f.close()
                     print("    >nfo收集完成")
 
-                # 需要两张图片
+                # 4需要两张图片
                 if if_jpg == '是':
                     # 下载海报的地址 cover
                     print('    >fanart.jpg的链接：', cover_url)
@@ -450,7 +451,7 @@ while start_key == '':
                     except:
                         fail_times += 1
                         fail_message = '    >第' + str(
-                            fail_times) + '个失败！封面url：' + cover_url + '，网络不佳，下载失败：\\' + new_root.lstrip(path) + '\\' + file + '\n'
+                            fail_times) + '个失败！封面url：' + cover_url + '，网络不佳，下载失败：' + relative_path + '\n'
                         print(fail_message, end='')
                         fail_list.append(fail_message)
                         write_fail(fail_message)
@@ -464,7 +465,7 @@ while start_key == '':
                                 f.write(chunk)
                         print('    >poster.jpg下载成功')
                     except:
-                        fail_message = '    >下载poster.jpg封面失败：\\' + new_root.lstrip(path) + '\\' + file + '\n'
+                        fail_message = '    >下载poster.jpg封面失败：' + relative_path + '\n'
                         print(fail_message, end='')
                         write_fail(fail_message)
                         continue
@@ -507,8 +508,8 @@ while start_key == '':
 
             except:
                 fail_times += 1
-                fail_message = '    >第' + str(fail_times) + '个失败！发生错误，如一直在该影片报错请截图并联系作者：\\' + root.lstrip(path) \
-                               + '\\' + file + '\n' + traceback.format_exc() + '\n'
+                fail_message = '    >第' + str(fail_times) + '个失败！发生错误，如一直在该影片报错请截图并联系作者：' + relative_path + '\n'\
+                               + traceback.format_exc() + '\n'
                 print(fail_message, end='')
                 fail_list.append(fail_message)
                 write_fail(fail_message)
