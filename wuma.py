@@ -281,16 +281,14 @@ while start_key == '':
             continue
         # 对这一层文件夹进行评估,有多少视频，有多少同车牌视频，是不是独立文件夹
         car_videos = []  # 存放：需要整理的jav的结构体
-        cars_dic = {}  # 存放：每一部jav有几集？
+        cars_dic = {}
         videos_num = 0  # 当前文件夹中视频的数量，可能有视频不是jav
         subtitles = False      # 有没有字幕
         for raw_file in files:
             # 判断文件是不是字幕文件
             if raw_file.endswith(('.srt', '.vtt', '.ass',)):
                 subtitles = True
-                break
-        for raw_file in files:
-            # try:
+                continue
             # 判断是不是视频，得到车牌号
             if raw_file.endswith(type_tuple) and not raw_file.startswith('.'):  # ([a-zA-Z]*\d*-?)+
                 videos_num += 1
@@ -306,7 +304,7 @@ while start_key == '':
                             fail_list.append('    >' + fail_message)
                             write_fail('    >' + fail_message)
                             continue
-                    video_type = '.' + str(raw_file.split('.')[-1])  # 文件类型的长度，如：mp4是3，rmvb是4
+                    video_type = '.' + str(raw_file.split('.')[-1])
                     if car_num not in cars_dic:
                         cars_dic[car_num] = 1
                     else:
@@ -337,6 +335,7 @@ while start_key == '':
             try:
                 car_num = srt.car
                 file = srt.name
+                relative_path = '\\' + root.lstrip(path) + '\\' + file  # 影片的相对于所选文件夹的路径，用于报错
                 # 获取nfo信息的javbus搜索网页
                 search_url = bus_url + 'uncensored/search/' + car_num + '&type=&parent=uc'
                 try:
@@ -345,8 +344,7 @@ while start_key == '':
                     jav_html = jav_rqs.text
                 except:
                     fail_times += 1
-                    fail_message = '    >第' + str(fail_times) + '个失败！连接javbus失败：' + search_url + '，\\' + root.lstrip(
-                        path) + '\\' + file + '\n'
+                    fail_message = '    >第' + str(fail_times) + '个失败！连接javbus失败：' + search_url + '，' + relative_path + '\n'
                     print(fail_message, end='')
                     fail_list.append(fail_message)
                     write_fail(fail_message)
@@ -392,8 +390,7 @@ while start_key == '':
                     # 没找到，还是空
                     if bav_url == '':
                         fail_times += 1
-                        fail_message = '第' + str(fail_times) + '个失败！找不到AV信息：' + search_url + '，\\' + root.lstrip(
-                            path) + '\\' + file + '\n'
+                        fail_message = '第' + str(fail_times) + '个失败！找不到AV信息：' + search_url + '，' + relative_path + '\n'
                         print('>>' + fail_message, end='')
                         fail_list.append('    >' + fail_message)
                         write_fail('    >' + fail_message)
@@ -407,8 +404,7 @@ while start_key == '':
                         jav_html = jav_rqs.text
                     except:
                         fail_times += 1
-                        fail_message = '    >第' + str(fail_times) + '个失败！连接javbus失败：' + search_url + '，\\' + root.lstrip(
-                            path) + '\\' + file + '\n'
+                        fail_message = '    >第' + str(fail_times) + '个失败！连接javbus失败：' + search_url + '，' + relative_path + '\n'
                         print(fail_message, end='')
                         fail_list.append(fail_message)
                         write_fail(fail_message)
@@ -418,8 +414,7 @@ while start_key == '':
                         print('>>跳过有码影片：', file)
                         continue
                     fail_times += 1
-                    fail_message = '第' + str(fail_times) + '个失败！找不到AV信息：' + search_url + '，\\' + root.lstrip(
-                        path) + '\\' + file + '\n'
+                    fail_message = '第' + str(fail_times) + '个失败！找不到AV信息：' + search_url + '，' + relative_path + '\n'
                     print('>>' + fail_message, end='')
                     fail_list.append('    >' + fail_message)
                     write_fail('    >' + fail_message)
@@ -430,8 +425,7 @@ while start_key == '':
                     bav_html = bav_rqs.text
                 except:
                     fail_times += 1
-                    fail_message = '    >第' + str(fail_times) + '个失败！打开javbus的搜索页面失败：' + search_url + '，\\' + root.lstrip(
-                        path) + '\\' + file + '\n'
+                    fail_message = '    >第' + str(fail_times) + '个失败！打开javbus的搜索页面失败：' + search_url + '，' + relative_path + '\n'
                     print(fail_message, end='')
                     fail_list.append(fail_message)
                     write_fail(fail_message)
@@ -443,8 +437,7 @@ while start_key == '':
                     title = re.search(r'<title>(.+?) - JavBus</title>', bav_html, re.DOTALL).group(1)   # 这边匹配番号
                 except:
                     fail_times += 1
-                    fail_message = '第' + str(fail_times) + '个失败！页面上找不到AV信息：' + bav_url + '，\\' + root.lstrip(
-                        path) + '\\' + file + '\n'
+                    fail_message = '第' + str(fail_times) + '个失败！页面上找不到AV信息：' + bav_url + '，' + relative_path + '\n'
                     print('>>' + fail_message, end='')
                     fail_list.append('    >' + fail_message)
                     write_fail('    >' + fail_message)
@@ -516,9 +509,8 @@ while start_key == '':
                 if str(coverg) != 'None':
                     cover_url = coverg.group(1)
                 #######################################################################
-                # title = title.rstrip(nfo_dict['首个女优'])
 
-                # 重命名视频
+                # 1重命名视频
                 new_mp4 = file.rstrip(video_type)
                 if if_mp4 == '是':  # 新文件名
                     new_mp4 = ''
@@ -541,8 +533,9 @@ while start_key == '':
                     file = new_mp4 + video_type
                     print('    >修改文件名' + cd_msg + '完成')
 
-                # 重命名文件夹
+                # 2重命名文件夹
                 new_root = root
+                new_folder = root.split('\\')[-1]    # 当前影片的新目录名称
                 if if_floder == '是':
                     # 新文件夹名rename_folder
                     new_folder = ''
@@ -571,8 +564,9 @@ while start_key == '':
                         new_root = root + '\\' + new_folder  # 在当前文件夹下再创建新文件夹
                         print('    >创建独立的文件夹完成')
 
-
-                #写入nfo开始
+                # 更新一下relative_path
+                relative_path = '，\\' + new_root.lstrip(path) + '\\' + file  # 影片的相对于所选文件夹的路径，用于报错
+                # 3写入nfo开始
                 if if_nfo == '是':
                     # 开始写入nfo，这nfo格式是参考的emby的nfo
                     info_path = new_root + '\\' + new_mp4 + '.nfo'      #nfo存放的地址
@@ -608,7 +602,7 @@ while start_key == '':
                     f.close()
                     print('    >nfo收集完成')
 
-                # 需要下载三张图片
+                # 4需要下载三张图片
                 if if_jpg == '是':
                     # 默认的 全标题.jpg封面
                     if if_qunhui != '是':
@@ -635,7 +629,7 @@ while start_key == '':
                             print('    >第二次下载成功')
                         except:
                             fail_times += 1
-                            fail_message = '    >第' + str(fail_times) + '个失败！下载fanart.jpg失败：' + cover_url + '，\\' + new_root.lstrip(path) + '\\' + file + '\n'
+                            fail_message = '    >第' + str(fail_times) + '个失败！下载fanart.jpg失败：' + cover_url + '，' + relative_path + '\n'
                             print(fail_message, end='')
                             fail_list.append(fail_message)
                             write_fail(fail_message)
@@ -663,7 +657,7 @@ while start_key == '':
                     if if_qunhui == '是':
                         shutil.copyfile(fanart_path, new_root + '\\Backdrop.jpg')
 
-                # 收集女优头像
+                # 5收集女优头像
                 if if_sculpture == '是':
                     for each_actor in nfo_dict['全部女优']:
                         exist_actor_path = '女优头像\\' + each_actor + '.jpg'
@@ -673,7 +667,7 @@ while start_key == '':
                             if not os.path.exists(exist_actor_path):  # 女优图片还没有
                                 fail_times += 1
                                 fail_message = '    >第' + str(
-                                    fail_times) + '个失败！没有女优头像：' + each_actor + '，' + root.lstrip(path) + '\\' + file + '\n'
+                                    fail_times) + '个失败！没有女优头像：' + each_actor + '，' + relative_path + '\n'
                                 print(fail_message, end='')
                                 fail_list.append(fail_message)
                                 write_fail(fail_message)
@@ -731,8 +725,7 @@ while start_key == '':
 
             except:
                 fail_times += 1
-                fail_message = '    >第' + str(fail_times) + '个失败！发生错误，如一直在该影片报错请截图并联系作者：\\' + root.lstrip(path) \
-                               + '\\' + file + '\n' + traceback.format_exc() + '\n'
+                fail_message = '    >第' + str(fail_times) + '个失败！发生错误，如一直在该影片报错请截图并联系作者：' + relative_path + '\n' + traceback.format_exc() + '\n'
                 fail_list.append(fail_message)
                 write_fail(fail_message)
                 continue
